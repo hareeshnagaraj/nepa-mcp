@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="20" role="img" aria-label="VS Code: MCP Client">
+  <title>VS Code: MCP Client</title>
+  <g shape-rendering="crispEdges">
+    <rect width="75" height="20" fill="#555"/>
+    <rect x="75" width="69" height="20" fill="#007acc"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans" text-rendering="geometricPrecision" font-size="110">
+    <image x="5" y="3" width="14" height="14" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAARGVYSWZNTQAqAAAACAABh2kABAAAAAEAAAAaAAAAAAADoAEAAwAAAAEAAQAAoAIABAAAAAEAAAAOoAMABAAAAAEAAAAOAAAAAL3wOfoAAAILSURBVCgVjVJBSFRRFD3vvf9nmnHGUXBsmspFWDjUQiKiCDEIrChoZdAiispaqC0CwcDFhygGIoIgCaq10SYJqUW4cCGEmBQlLRSileFOa/r+9/9/t/u+I21SevDffe/ed/4999wL/MdK35nuaXux3Nv+htIbz+XGYVM7MtkX+P4EEV46Uk/vm/Av9RIpsSnABm6/G4bj3oNeE7s6KsjtKIOEQrRaG3MS4KP5LigsoH//j+TueRJrx6pQ7hDiiF0CZAgm0CAyEDJ1QeHh5ytwto0jxhmcvD6Hxu3LyB99wpkGYCyIqwmD0eKevaFw07spjmF0xF6KvyDUi3AzFRj1FpXjU4iiq4hCwNAK2z48ONsvpfMThivjzJyWgbc6ZxDQCfi1WUi3gKbSEeSbAR18RPirG/dPPbP0KTaKWbLlj+16jUvzHGKlW3YCmRzQwMBsI//dQuqLEyV36+OzxOCrw5CZSaZ6CEvfVlBbfW8DgOpkUaZw99M1e4ORMTNklslmK6cD/KidBfgKoU6DGrqh9XPW3dZTgHSewpt5HIVh3gqT0GXseh8Hx7sQ6wWMnv/bDnGuCic1lCjLgFJrEdl8U9IOyFQdmHD5x+bNDbNgPAC/RalURra5FSQljF8b23rkvINVbs0NbkMIxeKZ6ANp//L3XOHi1iNXJ+GMzPa0lNsKuaj4evGmCKz7DybA0o00QB/lAAAAAElFTkSuQmCC"/>
+    <text x="475" y="140" textLength="470" transform="scale(.1)">VS Code</text>
+    <text x="1095" y="140" textLength="590" transform="scale(.1)">MCP Client</text>
+  </g>
+</svg>

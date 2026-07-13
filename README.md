@@ -7,9 +7,19 @@
 </p>
 
 <p align="center">
+  <strong>Works with</strong><br>
+  <a href="#configure-an-mcp-client"><img alt="Codex client configuration" src="docs/assets/badges/codex-client-config.svg"></a>
+  <a href="#codex-plugin"><img alt="Codex plugin" src="docs/assets/badges/codex-plugin.svg"></a>
+  <a href="#configure-an-mcp-client"><img alt="Claude Code client configuration" src="https://img.shields.io/badge/Claude_Code-MCP_Client-D97757?style=flat-square&amp;logo=anthropic&amp;logoColor=white"></a>
+  <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="docs/assets/badges/vscode-mcp-client.svg"></a>
+</p>
+
+<p align="center">
+  <strong>Built with</strong><br>
   <a href="https://www.python.org/"><img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white"></a>
   <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square"></a>
   <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white"></a>
+  <a href="https://shapely.readthedocs.io/"><img alt="Shapely 2.0+" src="https://img.shields.io/badge/Shapely-2.0%2B-2F6F3E?style=flat-square"></a>
   <a href="LICENSE"><img alt="ISC License" src="https://img.shields.io/badge/License-ISC-F4B942?style=flat-square"></a>
 </p>
 
