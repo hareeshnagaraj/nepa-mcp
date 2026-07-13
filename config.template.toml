@@ -1,0 +1,89 @@
+# NEPA MCP servers for Codex CLI.
+[mcp_servers.blm]
+command = "nepa-mcp"
+args = ["server", "blm"]
+env = { PYTHONUNBUFFERED = "1" }
+[mcp_servers.census]
+command = "nepa-mcp"
+args = ["server", "census"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.cfr]
+command = "nepa-mcp"
+args = ["server", "cfr"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.efh]
+command = "nepa-mcp"
+args = ["server", "efh"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.epa_aqs]
+command = "nepa-mcp"
+args = ["server", "epa_aqs"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.esa_ranges]
+command = "nepa-mcp"
+args = ["server", "esa_ranges"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.fema_nfhl]
+command = "nepa-mcp"
+args = ["server", "fema_nfhl"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.gbif]
+command = "nepa-mcp"
+args = ["server", "gbif"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.gis]
+command = "nepa-mcp"
+args = ["server", "gis"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.ipac]
+command = "nepa-mcp"
+args = ["server", "ipac"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.nepa_assist]
+command = "nepa-mcp"
+args = ["server", "nepa_assist"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.noaa]
+command = "nepa-mcp"
+args = ["server", "noaa"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.nrhp]
+command = "nepa-mcp"
+args = ["server", "nrhp"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.padus]
+command = "nepa-mcp"
+args = ["server", "padus"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.pcsrf]
+command = "nepa-mcp"
+args = ["server", "pcsrf"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.tigerweb_counties]
+command = "nepa-mcp"
+args = ["server", "tigerweb_counties"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.tribal]
+command = "nepa-mcp"
+args = ["server", "tribal"]
+env = { PYTHONUNBUFFERED = "1" }
+
+[mcp_servers.usace]
+command = "nepa-mcp"
+args = ["server", "usace"]
+env = { PYTHONUNBUFFERED = "1" }

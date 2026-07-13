@@ -1,0 +1,20 @@
+{
+  "name": "nepa-mcp-local",
+  "interface": {
+    "displayName": "NEPA-MCP Local"
+  },
+  "plugins": [
+    {
+      "name": "nepa-mcp",
+      "source": {
+        "source": "local",
+        "path": "./plugins/nepa-mcp"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

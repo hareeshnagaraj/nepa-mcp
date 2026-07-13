@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nepa-mcp"
+version = "0.1.0"
+description = "Local MCP servers for NEPA environmental permitting workflows"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: ISC License (ISCL)",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "fastmcp==3.4.4",
+    "httpx>=0.28.0",
+    "platformdirs>=4.0.0",
+    "pydantic>=2.12.0",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.0",
+    "shapely>=2.0.0",
+    "sse-starlette>=3.0.0",
+    "starlette>=0.48.0",
+    "tomlkit>=0.13.0",
+    "uvicorn>=0.35.0",
+]
+
+[project.scripts]
+nepa-mcp = "nepa_mcp.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "ruff>=0.15.14",
+]
+
+[tool.hatch.build]
+exclude = [
+    "**/__pycache__/**",
+    "**/*.pyc",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["nepa_mcp", "nepa_mcp_common"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"blm" = "nepa_mcp/_servers/blm"
+"census" = "nepa_mcp/_servers/census"
+"cfr" = "nepa_mcp/_servers/cfr"
+"efh" = "nepa_mcp/_servers/efh"
+"epa_aqs" = "nepa_mcp/_servers/epa_aqs"
+"esa_ranges" = "nepa_mcp/_servers/esa_ranges"
+"fema_nfhl" = "nepa_mcp/_servers/fema_nfhl"
+"gbif" = "nepa_mcp/_servers/gbif"
+"gis" = "nepa_mcp/_servers/gis"
+"ipac" = "nepa_mcp/_servers/ipac"
+"nepa_assist" = "nepa_mcp/_servers/nepa_assist"
+"noaa" = "nepa_mcp/_servers/noaa"
+"nrhp" = "nepa_mcp/_servers/nrhp"
+"padus" = "nepa_mcp/_servers/padus"
+"pcsrf" = "nepa_mcp/_servers/pcsrf"
+"tigerweb_counties" = "nepa_mcp/_servers/tigerweb_counties"
+"tribal" = "nepa_mcp/_servers/tribal"
+"usace" = "nepa_mcp/_servers/usace"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+"*/server.py" = ["E402"]

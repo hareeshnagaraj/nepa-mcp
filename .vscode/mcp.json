@@ -1,0 +1,202 @@
+{
+  "servers": {
+    "blm": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "blm"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "census": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "census"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "cfr": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "cfr"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "efh": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "efh"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "epa_aqs": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "epa_aqs"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "esa_ranges": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "esa_ranges"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "fema_nfhl": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "fema_nfhl"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "gbif": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "gbif"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "gis": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "gis"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "ipac": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "ipac"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "nepa_assist": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "nepa_assist"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "noaa": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "noaa"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "nrhp": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "nrhp"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "padus": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "padus"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "pcsrf": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "pcsrf"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "tigerweb_counties": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "tigerweb_counties"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "tribal": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "tribal"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    "usace": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "usace"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}

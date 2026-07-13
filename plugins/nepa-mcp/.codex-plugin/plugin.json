@@ -1,0 +1,33 @@
+{
+  "name": "nepa-mcp",
+  "version": "0.1.0+codex.20260713112940",
+  "description": "Use local NEPA environmental screening MCP tools from Codex.",
+  "author": {
+    "name": "NEPA-MCP maintainers"
+  },
+  "keywords": [
+    "nepa",
+    "environmental-review",
+    "mcp",
+    "federal-data"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "NEPA-MCP",
+    "shortDescription": "Screen projects with federal environmental data",
+    "longDescription": "NEPA-MCP connects Codex to local tools for environmental screening, biological and cultural resources, jurisdiction, flood risk, air quality, protected lands, and regulatory research.",
+    "developerName": "NEPA-MCP maintainers",
+    "category": "Developer Tools",
+    "capabilities": [
+      "MCP",
+      "Environmental data"
+    ],
+    "defaultPrompt": [
+      "Screen a project area for NEPA resources.",
+      "Identify environmental datasets for a project ROI.",
+      "Research current environmental regulatory context."
+    ],
+    "brandColor": "#256D5A"
+  }
+}

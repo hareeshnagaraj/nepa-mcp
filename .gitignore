@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+credentials.env
+config.toml
+handoffs/
+
+# Generated MCP client backups and interrupted writes
+*.nepa-mcp.bak
+.mcp.json.tmp
+.vscode/mcp.json.tmp
+
+# Legacy deployment-generated files
+*/.bedrock_agentcore.yaml
+*/.bedrock_agentcore/
+
+# Local outputs
+output/
+
+# OS and editor files
+.DS_Store
+.vscode/
+!.vscode/
+.vscode/*
+!.vscode/mcp.json
+.idea/
+*.swp

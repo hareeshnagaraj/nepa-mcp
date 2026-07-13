@@ -1,0 +1,7 @@
+# GIS Server Dependencies
+fastmcp==3.4.4
+requests>=2.32.0
+shapely>=2.0.0
+uvicorn>=0.35.0
+starlette>=0.48.0
+sse-starlette>=3.0.0

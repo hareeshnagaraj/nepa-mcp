@@ -1,0 +1,33 @@
+# MCP Data Source Licenses
+
+This reference consolidates data-source license notes for the current flat
+18-server repository. It is a public-release aid, not legal advice. Verify final
+license determinations before publishing or redistributing derived datasets.
+
+| Server | Agency / Publisher | Dataset / Service | Primary endpoint | Auth required | License / terms signal | Risk flag | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `blm` | BLM / DOI | Land Use Plans, Wilderness Areas, National Monuments and NCAs | `services1.arcgis.com/KbxwQRRfWyEYLgp4/.../FeatureServer` | No | Public domain signal from DOI / BLM public-content policies | Low | Federal agency geospatial services hosted on ArcGIS Online. |
+| `census` | U.S. Census Bureau | ACS 5-Year profile API and TIGERweb county boundaries | `api.census.gov/data/.../acs/acs5/profile`; `tigerweb.geo.census.gov/.../tigerWMS_Current/MapServer` | Yes for ACS API key | ACS API metadata declares CC0; TIGERweb follows Census API terms with attribution requirements | Medium | Census API terms require attribution and prohibit misuse such as re-identification. |
+| `cfr` | OFR / NARA / GPO; Federal Register | eCFR, Federal Register documents, Executive Orders | `ecfr.gov/api`; `federalregister.gov/api/v1` | No | Unrestricted reproduction / republication for Federal Register materials under 1 CFR 2.6 | Low | API responses are official federal regulatory publication data; verify citation currency. |
+| `efh` | NOAA Fisheries | EFH Mapper, HAPC, Pacific salmon EFH, HMS/CPS/groundfish EFH | `services2.arcgis.com/C8EMgrsFcRFL6LrL/.../FeatureServer` | No | Federal agency data; NOAA Fisheries service terms should be verified | Medium | Current tool docs disclose the applicable NOAA Fisheries scope. No-hit outside a dataset's geography is not a national absence finding. |
+| `epa_aqs` | EPA | Air Quality System API | `aqs.epa.gov/data/api` | Yes | EPA web policies permit non-commercial, scientific, and educational use; API has rate-limit and account terms | High | Requires EPA AQS email and API key. Avoid presenting screening comparisons as formal NAAQS compliance determinations. |
+| `esa_ranges` | NOAA Fisheries | West Coast Region ESA-listed salmon and steelhead ranges by HUC-12 | `maps.fisheries.noaa.gov/.../Ranges_dice/FeatureServer` | No | Federal agency data; NOAA Fisheries service terms should be verified | Medium | Current tool docs disclose West Coast Region scope and salmon/steelhead coverage. |
+| `fema_nfhl` | FEMA | National Flood Hazard Layer | `hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer` | No | No explicit NFHL service license found in the reviewed source materials | Medium | Treat results as screening data, not a site-specific engineering flood determination. |
+| `gbif` | GBIF | Species occurrence search | `api.gbif.org/v1/occurrence/search` | No | GBIF occurrence responses include dataset licenses, commonly CC-BY 4.0 / CC0 / CC-BY-NC at record or dataset level | Medium | Preserve attribution and license metadata when using GBIF occurrence records. |
+| `gis` | Esri | ArcGIS Geometry Service and related basemap/geocoder services | `utility.arcgisonline.com/.../GeometryServer` | No for current usage | Esri service terms / Master License Agreement | Medium | Used for ROI geometry and area calculations. Do not imply federal ownership of Esri utility services. |
+| `ipac` | USFWS / DOI | IPaC resources API | `ipac.ecosphere.fws.gov/location/api/resources` | No | Generally public domain signal from DOI / USFWS federal data policies | Medium | IPaC endpoint is not a formal public API contract and may change. |
+| `nepa_assist` | EPA | NEPAssist environmental screening | `nepassisttool.epa.gov/nepassist/analysis.aspx` | No | EPA geospatial data generally public domain under 17 U.S.C. 105 unless otherwise specified | High | Access method is fragile because it relies on NEPAssist web endpoint behavior. |
+| `noaa` | NOAA Fisheries | West Coast Region ESA critical habitat | `maps.fisheries.noaa.gov/.../WCR_ch_dice/FeatureServer` | No | Federal agency data; NOAA Fisheries service terms should be verified | Medium | Current tool docs disclose West Coast Region scope. |
+| `nrhp` | National Park Service | National Register of Historic Places listed properties | `mapservices.nps.gov/.../cultural_resources/nrhp_locations/MapServer` | No | Federal agency public data signal; NPS service terms should be verified | Medium | Current service covers listed NRHP records, not all eligible cultural resources. |
+| `padus` | USGS / DOI | PAD-US 4.1 protected-area records | `edits.nationalmap.gov/.../PAD-US/PAD_US_4_1/MapServer` | No | Public domain signal from DOI / USGS public data policies | Low | PAD-US is protected-area screening data, not comprehensive cadastral parcel ownership. |
+| `pcsrf` | NOAA Fisheries | PCSRF project locations and funding | `services2.arcgis.com/C8EMgrsFcRFL6LrL/.../PCSRF_Projects_Display/FeatureServer` | No | Federal agency data; NOAA Fisheries service terms should be verified | Medium | Only `get_pcsrf_projects_in_roi` is PCSRF project data. |
+| `pcsrf` | NOAA Fisheries | NOAA all-species ranges, 2021-09-04 critical habitat snapshot, Atlantic salmon EFH/HAPC | `services2.arcgis.com/C8EMgrsFcRFL6LrL/.../FeatureServer` | No | Federal agency data; NOAA Fisheries service terms should be verified | Medium | These are NOAA datasets exposed by the PCSRF server for now; tool names disclose actual provenance. |
+| `tigerweb_counties` | U.S. Census Bureau | TIGERweb county boundaries | `tigerweb.geo.census.gov/.../tigerWMS_Current/MapServer/82/query` | No | Census API terms with attribution requirements | Medium | Attribution language from Census API terms should be preserved in downstream products. |
+| `tribal` | U.S. Census Bureau | AIANNHA tribal geography layers | `tigerweb.geo.census.gov/.../AIANNHA/MapServer` | No | Census API terms with attribution requirements | Medium | These are Census geography records for screening and do not replace consultation obligations. |
+| `usace` | USACE | Regulatory boundaries, wetland regions, wetland subregions | `services7.arcgis.com/n1YM8pTrFmm7L4hs/.../FeatureServer` | No | USACE public-information disclaimer permits distribution/copying | Low | Contact the relevant district for permit decisions; tools are screening aids. |
+
+## Follow-Up Checks
+
+- Confirm whether NOAA Fisheries ArcGIS service pages expose explicit item-level terms beyond general federal data status.
+- Confirm current FEMA NFHL terms for the ArcGIS MapServer specifically, separate from OpenFEMA API terms.
+- Preserve source URLs, retrieval dates, and any upstream warnings when generating public-facing reports from tool outputs.
