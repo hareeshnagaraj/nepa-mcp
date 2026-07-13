@@ -1,8 +1,17 @@
 <p align="center">
-  <img src="docs/assets/nepa-mcp-toolkit.png" alt="PermitAI — NEPA MCP Toolkit" width="800">
+  <img src="docs/assets/nepa-mcp-toolkit.png" alt="PermitAI — NEPA MCP Toolkit" width="620">
 </p>
 
-# NEPA MCP
+<p align="center">
+  <strong>Federal environmental data and regulatory research for AI-assisted NEPA workflows</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white"></a>
+  <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square"></a>
+  <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white"></a>
+  <a href="LICENSE"><img alt="ISC License" src="https://img.shields.io/badge/License-ISC-F4B942?style=flat-square"></a>
+</p>
 
 NEPA MCP is the Model Context Protocol (MCP) server layer of the PermitAI
 toolkit. It gives AI agents structured access to federal environmental,
