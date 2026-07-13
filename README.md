@@ -20,8 +20,7 @@ in NEPA screening and permitting research.
 
 The repository provides 18 independent domain servers, an installable
 `nepa-mcp` command, client-configuration helpers, and an optional Codex plugin.
-Servers return data directly through MCP tools and do not write CSV exports or
-other output files into the repository.
+Each server exposes structured responses directly to the connected MCP client.
 
 > [!IMPORTANT]
 > NEPA MCP is a screening and research aid. It does not make legal or agency
