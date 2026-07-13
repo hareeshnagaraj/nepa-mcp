@@ -8,7 +8,7 @@
 
 <p align="center">
   <strong>Works with</strong><br>
-  <a href="#configure-an-mcp-client"><img alt="Codex client configuration" src="docs/assets/badges/codex-client-config.svg"></a>
+  <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="docs/assets/badges/codex-client-config.svg"></a>
   <a href="#codex-plugin"><img alt="Codex plugin" src="docs/assets/badges/codex-plugin.svg"></a>
   <a href="#configure-an-mcp-client"><img alt="Claude Code client configuration" src="https://img.shields.io/badge/Claude_Code-MCP_Client-D97757?style=flat-square&amp;logo=anthropic&amp;logoColor=white"></a>
   <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="docs/assets/badges/vscode-mcp-client.svg"></a>
