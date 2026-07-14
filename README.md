@@ -1,6 +1,6 @@
 <div align="center" style="text-align: center;">
 
-  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI NEPA MCP Toolkit" width="740">
+  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI NEPA MCP Toolkit" width="640">
   <br>
 
   <p><strong>Federal environmental data and regulatory research for AI-assisted NEPA workflows</strong></p>
