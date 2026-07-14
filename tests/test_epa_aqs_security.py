@@ -102,7 +102,7 @@ class TestInputValidation:
 
 class TestCredentialSourcing:
     def test_credentials_read_from_environment(self, monkeypatch):
-        module = _load_server()
+        _load_server()  # populates sys.modules["src.apis.aqs_api"]
         api = sys.modules["src.apis.aqs_api"]
         monkeypatch.setenv("EPA_AQS_EMAIL", "env@example.com")
         monkeypatch.setenv("EPA_AQS_API_KEY", "env-key")
@@ -141,7 +141,7 @@ class TestErrorMessageSafety:
             assert "latitude" in msg.lower()
 
     def test_credential_error_does_not_leak_key(self, monkeypatch):
-        module = _load_server()
+        _load_server()  # populates sys.modules["src.apis.aqs_api"]
         api = sys.modules["src.apis.aqs_api"]
         monkeypatch.setenv("EPA_AQS_API_KEY", "super-secret-value")
         monkeypatch.delenv("EPA_AQS_EMAIL", raising=False)

@@ -48,8 +48,6 @@ def _load_server():
 
 
 def _install_mock_query(module, feature_map, warnings=None):
-    api = sys.modules["src.apis.usace_api"] if "src.apis.usace_api" in sys.modules else module
-
     def query_features(url, _layer_id, _geometry, *, service_name=None, **_kwargs):
         for key, feats in feature_map.items():
             if key in (service_name or "") or key in url:

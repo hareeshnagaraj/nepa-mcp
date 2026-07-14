@@ -10,7 +10,6 @@ tool output. Validation is enforced by ``_validate_geo_inputs`` in
 from __future__ import annotations
 
 import importlib.util
-import math
 import sys
 from pathlib import Path
 

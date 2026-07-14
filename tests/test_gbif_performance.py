@@ -14,7 +14,6 @@ import sys
 import time
 from pathlib import Path
 
-from nepa_mcp_common.arcgis import ArcGISFeatureQueryResult
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_DIR = ROOT / "gbif"

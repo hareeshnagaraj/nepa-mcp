@@ -68,7 +68,7 @@ class TestDeduplicationScaling:
         api = _load_esa_api()
         _patch_roi(api, monkeypatch)
         # 1000 fragments across 10 distinct (entity, huc) keys.
-        entities = [f"CKCAC" for _ in range(1000)]
+        entities = ["CKCAC" for _ in range(1000)]
         features = [_l2(entities[i], f"HUC{i % 10:012d}") for i in range(1000)]
         _patch_layers(api, monkeypatch, {_LAYER2_ID: features, _LAYER1_ID: []})
         result = api.get_esa_species_ranges_in_roi(46.5, -120.5, 5.0)
