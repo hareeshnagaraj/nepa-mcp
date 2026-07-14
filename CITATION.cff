@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata in this file."
+title: "NEPA MCP: Independent MCP Servers for NEPA Environmental Screening"
+type: software
+authors:
+  - family-names: Chaturvedi
+    given-names: Sarthak
+  - family-names: Chintalapati
+    given-names: Renuka
+  - family-names: Nally
+    given-names: Dan
+  - family-names: Parkar
+    given-names: Mike
+  - family-names: Munikoti
+    given-names: Sai
+  - family-names: Horawalavithana
+    given-names: Sameera
+version: 0.1.0
+repository-code: "https://github.com/sarthakchat/nepa-mcp-server"
+license: BSD-3-Clause

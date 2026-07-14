@@ -20,7 +20,7 @@
   <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square" height="20"></a>
   <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white" height="20"></a>
   <a href="https://shapely.readthedocs.io/"><img alt="Shapely 2.0+" src="https://img.shields.io/badge/Shapely-2.0%2B-2F6F3E?style=flat-square" height="20"></a>
-  <a href="LICENSE"><img alt="ISC License" src="https://img.shields.io/badge/License-ISC-F4B942?style=flat-square" height="20"></a>
+  <a href="LICENSE"><img alt="BSD 3-Clause License" src="https://img.shields.io/badge/License-BSD_3--Clause-F4B942?style=flat-square" height="20"></a>
 </p>
 
 NEPA MCP is the Model Context Protocol (MCP) server layer of the PermitAI
@@ -241,12 +241,14 @@ checks above before opening a pull request.
 
 ## License
 
-The repository's source code is available under the [ISC License](LICENSE).
+The repository's source code is available under the
+[BSD 3-Clause License](LICENSE).
 
 ## Citation
 
 If you use NEPA MCP in research, environmental assessments, or other scientific
-or technical publications, please cite it as:
+or technical publications, please use the metadata in [`CITATION.cff`](CITATION.cff)
+or cite it as:
 
 ```bibtex
 @software{nepa_mcp,
@@ -256,6 +258,6 @@ or technical publications, please cite it as:
   institution  = {Pacific Northwest National Laboratory},
   url          = {https://github.com/sarthakchat/nepa-mcp-server},
   version      = {0.1.0},
-  license      = {ISC}
+  license      = {BSD-3-Clause}
 }
 ```
