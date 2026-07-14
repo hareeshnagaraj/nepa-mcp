@@ -32,6 +32,9 @@ The repository provides 18 independent domain servers, an installable
 `nepa-mcp` command, client-configuration helpers, and an optional Codex plugin.
 Each server exposes structured responses directly to the connected MCP client.
 
+**Explore capabilities:** Browse the [MCP Tool Catalog](docs/mcp-tool-catalog.md)
+for all 18 servers and 43 tools at a glance.
+
 > [!IMPORTANT]
 > NEPA MCP is a screening and research aid. It does not make legal or agency
 > determinations, replace consultation with agencies or Tribes, or guarantee
@@ -225,7 +228,7 @@ offline invalid-argument handling, shared utilities, and distribution contents.
 
 ## Data Sources and Licensing
 
-The [data-source inventory](technical-docs/mcp-data-source-licenses.md) records
+The [data-source inventory](docs/mcp-data-source-licenses.md) records
 the source agencies, endpoints, authentication requirements, license signals,
 and release notes for the current server inventory. Upstream data remains
 subject to each source's terms and authoritative-use guidance.
