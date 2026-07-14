@@ -5,7 +5,7 @@
   <p><strong>Federal environmental data and regulatory research for AI-assisted NEPA workflows</strong></p>
 
   <p>
-  <strong>Works with</strong><br>
+  Works with<br>
   <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="docs/assets/badges/codex-client-config.svg" height="20"></a>
   <a href="#codex-plugin"><img alt="Codex plugin" src="docs/assets/badges/codex-plugin.svg" height="20"></a>
   <a href="#configure-an-mcp-client"><img alt="Claude Code client configuration" src="https://img.shields.io/badge/Claude_Code-MCP_Client-D97757?style=flat-square&amp;logo=anthropic&amp;logoColor=white" height="20"></a>
@@ -13,7 +13,7 @@
   </p>
 
   <p>
-  <strong>Built with</strong><br>
+  Built with<br>
   <a href="https://www.python.org/"><img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" height="20"></a>
   <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square" height="20"></a>
   <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white" height="20"></a>
