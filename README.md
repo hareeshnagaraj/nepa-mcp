@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/nepa-mcp-toolkit.png" alt="PermitAI — NEPA MCP Toolkit" width="620">
+  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI — NEPA MCP Toolkit™" width="740">
 </p>
 
 <p align="center">
