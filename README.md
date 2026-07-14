@@ -144,26 +144,30 @@ Credentials are not copied into MCP client or plugin configuration, and
 
 ## Server Inventory
 
-| Server | Purpose |
-|---|---|
-| `blm` | BLM land use plans, wilderness areas, and national monuments |
-| `census` | Census ACS socioeconomic indicators |
-| `cfr` | CFR citations and structure, Federal Register history, and executive orders |
-| `efh` | NOAA Essential Fish Habitat and HAPC screening |
-| `epa_aqs` | EPA air-quality monitoring and NAAQS screening |
-| `esa_ranges` | NOAA ESA-listed species ranges |
-| `fema_nfhl` | FEMA flood zones, levees, and water areas |
-| `gbif` | GBIF species occurrences and biodiversity data |
-| `gis` | Region-of-interest geometry, GeoJSON, and area utilities |
-| `ipac` | USFWS IPaC species, critical habitat, and migratory birds |
-| `nepa_assist` | EPA NEPAssist environmental screening |
-| `noaa` | NOAA West Coast Region critical habitat |
-| `nrhp` | National Register of Historic Places properties |
-| `padus` | USGS PAD-US protected areas, ownership, and management records |
-| `pcsrf` | NOAA species, habitat, and recovery-program datasets |
-| `tigerweb_counties` | Census TIGERweb county intersections |
-| `tribal` | Census AIANNHA tribal lands |
-| `usace` | USACE regulatory districts and wetland regions |
+| Server | Source agency / publisher | Purpose |
+|---|---|---|
+| `blm` | [Bureau of Land Management](https://www.blm.gov/) / [Department of the Interior](https://www.doi.gov/) | Approved land-use plans, wilderness areas, national monuments, and National Conservation Areas |
+| `census` | [U.S. Census Bureau](https://www.census.gov/) | ACS 5-Year socioeconomic indicators for intersecting TIGERweb counties |
+| `cfr` | [Office of the Federal Register / National Archives](https://www.archives.gov/federal-register) and [U.S. Government Publishing Office](https://www.gpo.gov/) | eCFR and Federal Register records, including executive orders |
+| `efh` | [NOAA Fisheries](https://www.fisheries.noaa.gov/) | EFH Mapper data for EFH, HAPC, salmon, HMS, coastal pelagic species, and groundfish screening |
+| `epa_aqs` | [U.S. Environmental Protection Agency](https://www.epa.gov/) | Air Quality System monitoring data and NAAQS screening comparisons |
+| `esa_ranges` | [NOAA Fisheries, West Coast Region](https://www.fisheries.noaa.gov/about/west-coast-region) | ESA-listed salmon and steelhead ranges by HUC-12 watershed |
+| `fema_nfhl` | [Federal Emergency Management Agency](https://www.fema.gov/) | National Flood Hazard Layer flood zones, levees, and water areas |
+| `gbif` | [Global Biodiversity Information Facility](https://www.gbif.org/) and contributing dataset publishers; [U.S. Census Bureau](https://www.census.gov/) for county boundaries | Occurrence records by ROI or county; record-level publisher and license vary |
+| `gis` | [Esri](https://www.esri.com/) | ArcGIS Geometry Service ROI buffers with locally derived GeoJSON and area estimates |
+| `ipac` | [U.S. Fish and Wildlife Service](https://www.fws.gov/) / [Department of the Interior](https://www.doi.gov/) | IPaC species, critical habitat, migratory birds, wetlands, refuges, and related resources |
+| `nepa_assist` | [U.S. Environmental Protection Agency](https://www.epa.gov/) | NEPAssist aggregated environmental-screening indicators |
+| `noaa` | [NOAA Fisheries, West Coast Region](https://www.fisheries.noaa.gov/about/west-coast-region) | ESA critical-habitat designations |
+| `nrhp` | [National Park Service](https://www.nps.gov/) / [Department of the Interior](https://www.doi.gov/) | National Register-listed property locations |
+| `padus` | [U.S. Geological Survey](https://www.usgs.gov/) / [Department of the Interior](https://www.doi.gov/) | PAD-US 4.1 protected-area owner and manager attributes for screening |
+| `pcsrf` | [NOAA Fisheries](https://www.fisheries.noaa.gov/) | PCSRF projects plus species ranges, a 2021 critical-habitat snapshot, and Atlantic salmon EFH/HAPC |
+| `tigerweb_counties` | [U.S. Census Bureau](https://www.census.gov/) | TIGERweb county-boundary intersections |
+| `tribal` | [U.S. Census Bureau](https://www.census.gov/) | TIGERweb AIANNHA geographic areas for tribal-consultation screening |
+| `usace` | [U.S. Army Corps of Engineers](https://www.usace.army.mil/) | Regulatory boundaries and wetland delineation regions and subregions |
+
+> Many geographic servers also use [Esri's ArcGIS Geometry Service](https://developers.arcgis.com/rest/services-reference/enterprise/geometry-service/)
+> to construct ROI buffers. Esri is a supporting geometry-service provider,
+> not the publisher of the agency datasets identified above.
 
 ## Geographic Inputs and Data Behavior
 
@@ -227,6 +231,27 @@ The test suite checks server startup and discovery, tool-schema readability,
 offline invalid-argument handling, shared utilities, and distribution contents.
 
 ## Data Sources and Licensing
+
+**Source agencies and publishers:** [Bureau of Land Management](https://www.blm.gov/)
+· [Department of the Interior](https://www.doi.gov/)
+· [U.S. Census Bureau](https://www.census.gov/)
+· [U.S. Environmental Protection Agency](https://www.epa.gov/)
+· [Esri](https://www.esri.com/)
+· [Federal Emergency Management Agency](https://www.fema.gov/)
+· [Office of the Federal Register](https://www.archives.gov/federal-register)
+and [U.S. Government Publishing Office](https://www.gpo.gov/)
+· [Global Biodiversity Information Facility](https://www.gbif.org/)
+and contributing dataset publishers
+· [National Park Service](https://www.nps.gov/)
+· [NOAA Fisheries](https://www.fisheries.noaa.gov/)
+· [U.S. Army Corps of Engineers](https://www.usace.army.mil/)
+· [U.S. Fish and Wildlife Service](https://www.fws.gov/)
+· [U.S. Geological Survey](https://www.usgs.gov/)
+
+> [!NOTE]
+> Agency and publisher names identify upstream data provenance only. NEPA MCP
+> is an independent project and is not affiliated with, sponsored by, or
+> endorsed by these organizations.
 
 The [data-source inventory](docs/mcp-data-source-licenses.md) records
 the source agencies, endpoints, authentication requirements, license signals,
