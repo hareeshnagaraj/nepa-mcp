@@ -4,6 +4,8 @@ import asyncio
 import json
 import os
 import stat
+import subprocess
+import sys
 from pathlib import Path
 
 from fastmcp import Client
@@ -174,6 +176,37 @@ def test_open_source_runtime_has_no_aws_secret_manager_dependency() -> None:
     assert "boto3" not in credential_requirements
     assert "secretsmanager" not in credential_servers.lower()
     assert "get_secret_value" not in credential_servers
+
+
+def test_non_spatial_common_import_does_not_require_pyproj() -> None:
+    script = """
+import builtins
+
+real_import = builtins.__import__
+
+def guarded_import(name, *args, **kwargs):
+    if name == "pyproj" or name.startswith("pyproj."):
+        raise ImportError("pyproj intentionally unavailable")
+    return real_import(name, *args, **kwargs)
+
+builtins.__import__ = guarded_import
+import nepa_mcp_common.arcgis
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_area_enabled_standalone_servers_declare_pyproj() -> None:
+    for server_name in ("efh", "esa_ranges", "noaa", "pcsrf"):
+        requirements = (ROOT / server_name / "requirements.txt").read_text(encoding="utf-8")
+        assert "pyproj>=3.7.0" in requirements
 
 
 async def _aggregate_tool_names() -> set[str]:
