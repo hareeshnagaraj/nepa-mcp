@@ -15,6 +15,7 @@ import logging
 from typing import Dict, List, Optional
 
 from nepa_mcp_common.arcgis import ArcGISService
+from nepa_mcp_common.spatial import AreaUnit, clipped_union_area_from_esri_geometries
 from nepa_mcp_common.validation import (
     PCSRF_PROJECT_EXPECTED_BOUNDS,
     add_empty_result_coverage_warning,
@@ -87,7 +88,7 @@ def get_species_ranges_in_roi(lat: float, lon: float, buffer_miles: float = 25.0
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "species", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, _complete = _query_layer(
         PCSRF_SPECIES_RANGES_URL,
         PCSRF_SPECIES_RANGES_LAYER_ID,
         buffer_geom,
@@ -121,21 +122,24 @@ def get_critical_habitat_in_roi(lat: float, lon: float, buffer_miles: float = 25
         buffer_miles: Buffer radius in miles (default 25).
 
     Returns:
-        Dictionary with center, buffer_miles, total, habitats list, species_count.
+        Dictionary with center, buffer_miles, total, habitats list, and
+        species_count. Polygon records distinguish ROI-clipped area from source
+        feature area; line records retain source length only.
     """
     lat, lon, buffer_miles = validate_coordinates(lat, lon, buffer_miles)
     buffer_geom = _create_buffer(lat, lon, buffer_miles)
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "habitats", "Buffer creation failed")
 
-    poly_features, poly_warnings = _query_layer(
+    poly_features, poly_warnings, poly_complete = _query_layer(
         PCSRF_CRITICAL_HABITAT_POLY_URL,
         PCSRF_CRITICAL_HABITAT_POLY_LAYER_ID,
         buffer_geom,
         _CH_POLY_OUT_FIELDS,
         "PCSRF critical habitat polygons",
+        return_geometry=True,
     )
-    line_features, line_warnings = _query_layer(
+    line_features, line_warnings, _line_complete = _query_layer(
         PCSRF_CRITICAL_HABITAT_LINE_URL,
         PCSRF_CRITICAL_HABITAT_LINE_LAYER_ID,
         buffer_geom,
@@ -143,19 +147,31 @@ def get_critical_habitat_in_roi(lat: float, lon: float, buffer_miles: float = 25
         "PCSRF critical habitat lines",
     )
 
-    habitats = _deduplicate_ch_fragments(poly_features, "polygon")
+    habitats = _deduplicate_ch_fragments(
+        poly_features,
+        "polygon",
+        roi_geometry=buffer_geom,
+        geometry_complete=poly_complete,
+    )
     habitats.extend(_deduplicate_ch_fragments(line_features, "line"))
     habitats.sort(key=lambda h: (h["common_name"], h["unit"]))
 
     unique = {h["listed_entity"] for h in habitats}
 
+    warnings = poly_warnings + line_warnings
+    _append_area_warnings(warnings, habitats, label_key="listed_entity")
+    if any(habitat.get("length_km") is not None for habitat in habitats):
+        warnings.append(
+            "Critical-habitat line length is a legacy source-coordinate estimate; "
+            "it is not a geodesic length clipped to the ROI."
+        )
     result = {
         "center": {"latitude": lat, "longitude": lon},
         "buffer_miles": buffer_miles,
         "total": len(habitats),
         "habitats": habitats,
         "species_count": len(unique),
-        "warnings": poly_warnings + line_warnings,
+        "warnings": warnings,
     }
     return result
 
@@ -171,22 +187,30 @@ def get_efh_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> Dict:
         buffer_miles: Buffer radius in miles (default 25).
 
     Returns:
-        Dictionary with center, buffer_miles, total, efh_areas list.
+        Dictionary with center, buffer_miles, total, and efh_areas list. Each
+        polygon record includes area inside the ROI plus status/completeness;
+        the raw service area attribute remains separately available.
     """
     lat, lon, buffer_miles = validate_coordinates(lat, lon, buffer_miles)
     buffer_geom = _create_buffer(lat, lon, buffer_miles)
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "efh_areas", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, geometry_complete = _query_layer(
         PCSRF_EFH_URL,
         PCSRF_EFH_LAYER_ID,
         buffer_geom,
         _EFH_OUT_FIELDS,
         "PCSRF EFH",
+        return_geometry=True,
     )
 
-    efh_areas = _parse_efh(features)
+    efh_areas = _parse_efh(
+        features,
+        roi_geometry=buffer_geom,
+        geometry_complete=geometry_complete,
+    )
+    _append_area_warnings(warnings, efh_areas, label_key="gnis_name")
 
     return {
         "center": {"latitude": lat, "longitude": lon},
@@ -213,7 +237,7 @@ def get_pcsrf_projects_in_roi(lat: float, lon: float, buffer_miles: float = 25.0
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "projects", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, _complete = _query_layer(
         PCSRF_PROJECTS_URL,
         PCSRF_PROJECTS_LAYER_ID,
         buffer_geom,
@@ -309,12 +333,27 @@ def format_critical_habitat_summary(result: Dict) -> str:
             ]
             for u in sorted(units, key=lambda x: x["unit"]):
                 size = ""
-                if u.get("area_sqkm"):
-                    size = f" — {u['area_sqkm']} sq km"
+                if u.get("area_sqkm") is not None:
+                    if u.get("area_complete") is False:
+                        label = "partial area within ROI"
+                    else:
+                        label = (
+                            "within ROI"
+                            if u.get("area_status") not in (None, "source_feature_attributes")
+                            else "source area"
+                        )
+                    size = f" — {u['area_sqkm']} sq km {label}"
+                elif u.get("area_status"):
+                    size = f" — area unavailable ({u['area_status']})"
                 elif u.get("length_km"):
-                    size = f" — {u['length_km']} km"
+                    size = f" — {u['length_km']} km (legacy estimate; not ROI-clipped)"
                 hab = f" ({u['habitat_type']})" if u.get("habitat_type") else ""
                 lines.append(f"- **{u['unit']}**{hab}{size}")
+                if (
+                    u.get("area_status") not in (None, "source_feature_attributes")
+                    and u.get("source_area_sqkm") is not None
+                ):
+                    lines.append(f"  Source feature-area total (not clipped to ROI): {u['source_area_sqkm']} sq km")
             lines.append("")
 
         lines += [
@@ -348,7 +387,13 @@ def format_efh_summary(result: Dict) -> str:
             name = area.get("gnis_name") or "Unnamed"
             efh_type = area.get("type", "")
             region = area.get("region", "")
-            lines.append(f"- **{name}** — Type: {efh_type}, Region: {region}")
+            area_note = ""
+            if area.get("area_acres") is not None:
+                label = "Partial area within ROI" if area.get("area_complete") is False else "Area within ROI"
+                area_note = f", {label}: {area['area_acres']:,.2f} acres"
+            elif area.get("area_status"):
+                area_note = f", Area within ROI: unavailable ({area['area_status']})"
+            lines.append(f"- **{name}** — Type: {efh_type}, Region: {region}{area_note}")
         lines.append("")
         lines += [
             "---",
@@ -432,7 +477,9 @@ def _query_layer(
     buffer_geom: Dict,
     out_fields: str,
     layer_name: str,
-) -> tuple[List[Dict], List[str]]:
+    *,
+    return_geometry: bool = False,
+) -> tuple[List[Dict], List[str], bool]:
     try:
         result = ArcGISService.query_features(
             service_url,
@@ -441,12 +488,15 @@ def _query_layer(
             out_fields=out_fields,
             timeout=30,
             service_name=layer_name,
+            return_geometry=return_geometry,
+            out_sr=4326 if return_geometry else None,
+            simplify_geometry=not return_geometry,
         )
-        return result.features, result.warnings
+        return result.features, result.warnings, not result.truncated
     except Exception as e:
         warning = f"{layer_name} query failed: {e}"
         logger.warning(warning)
-        return [], [warning]
+        return [], [warning], False
 
 
 def _parse_ranges(features: List[Dict]) -> List[Dict]:
@@ -476,8 +526,15 @@ def _parse_ranges(features: List[Dict]) -> List[Dict]:
     return sorted(seen.values(), key=lambda s: s["common_name"])
 
 
-def _deduplicate_ch_fragments(features: List[Dict], geom_type: str) -> List[Dict]:
+def _deduplicate_ch_fragments(
+    features: List[Dict],
+    geom_type: str,
+    *,
+    roi_geometry: Dict | None = None,
+    geometry_complete: bool = True,
+) -> List[Dict]:
     grouped: Dict[tuple, Dict] = {}
+    geometries: Dict[tuple, List[Dict | None]] = {}
     for f in features:
         a = f.get("attributes", {})
         key = (a.get("LISTENTITY", ""), a.get("UNIT", ""))
@@ -499,26 +556,73 @@ def _deduplicate_ch_fragments(features: List[Dict], geom_type: str) -> List[Dict
                 "inport_url": a.get("INPORTURL") or "",
                 "geometry_type": geom_type,
             }
+            geometries[key] = []
         if geom_type == "polygon":
             grouped[key]["area_sqkm"] += a.get("AREASqKm") or 0.0
+            geometries[key].append(f.get("geometry"))
         else:
             length_deg = a.get("Shape__Length") or 0.0
             grouped[key]["length_km"] += length_deg * 111.0
 
     result = []
-    for h in grouped.values():
-        h["area_sqkm"] = round(h["area_sqkm"], 2) if h["area_sqkm"] else None
+    for key, h in grouped.items():
+        source_area = round(h["area_sqkm"], 2) if h["area_sqkm"] else None
+        if geom_type == "polygon":
+            h["source_area_sqkm"] = source_area
+            _set_area_fields(
+                h,
+                geometries[key],
+                roi_geometry=roi_geometry,
+                geometry_complete=geometry_complete,
+                unit=AreaUnit.SQUARE_KILOMETERS,
+                output_key="area_sqkm",
+                source_value=source_area,
+            )
+        else:
+            h["area_sqkm"] = None
         h["length_km"] = round(h["length_km"], 2) if h["length_km"] else None
         result.append(h)
     return result
 
 
-def _parse_efh(features: List[Dict]) -> List[Dict]:
-    areas = []
+def _parse_efh(
+    features: List[Dict],
+    *,
+    roi_geometry: Dict | None = None,
+    geometry_complete: bool = True,
+) -> List[Dict]:
+    if roi_geometry is None:
+        # Preserve the historical one-output-per-input helper contract for
+        # direct Python callers. Production point-buffer calls pass an ROI and
+        # use the grouped union/clip path below.
+        return sorted(
+            [
+                {
+                    "gnis_name": feature.get("attributes", {}).get("GNIS_Name") or "",
+                    "type": feature.get("attributes", {}).get("TYPE") or "",
+                    "region": feature.get("attributes", {}).get("REGION") or "",
+                    "link": feature.get("attributes", {}).get("LINK") or "",
+                    "buffer_dist": feature.get("attributes", {}).get("BUFF_DIST"),
+                    "area_sq_units": feature.get("attributes", {}).get("Shape__Area"),
+                }
+                for feature in features
+            ],
+            key=lambda entry: entry["gnis_name"],
+        )
+
+    grouped: Dict[tuple, Dict] = {}
+    geometries: Dict[tuple, List[Dict | None]] = {}
     for f in features:
         a = f.get("attributes", {})
-        areas.append(
-            {
+        key = (
+            a.get("GNIS_Name") or "",
+            a.get("TYPE") or "",
+            a.get("REGION") or "",
+            a.get("LINK") or "",
+            a.get("BUFF_DIST"),
+        )
+        if key not in grouped:
+            grouped[key] = {
                 "gnis_name": a.get("GNIS_Name") or "",
                 "type": a.get("TYPE") or "",
                 "region": a.get("REGION") or "",
@@ -526,8 +630,60 @@ def _parse_efh(features: List[Dict]) -> List[Dict]:
                 "buffer_dist": a.get("BUFF_DIST"),
                 "area_sq_units": a.get("Shape__Area"),
             }
+            geometries[key] = []
+        elif a.get("Shape__Area"):
+            grouped[key]["area_sq_units"] = (grouped[key].get("area_sq_units") or 0) + a["Shape__Area"]
+        geometries[key].append(f.get("geometry"))
+
+    areas = []
+    for key, entry in grouped.items():
+        _set_area_fields(
+            entry,
+            geometries[key],
+            roi_geometry=roi_geometry,
+            geometry_complete=geometry_complete,
+            unit=AreaUnit.ACRES,
+            output_key="area_acres",
+            source_value=None,
         )
+        areas.append(entry)
     return sorted(areas, key=lambda x: x["gnis_name"])
+
+
+def _set_area_fields(
+    entry: Dict,
+    geometries: List[Dict | None],
+    *,
+    roi_geometry: Dict | None,
+    geometry_complete: bool,
+    unit: AreaUnit,
+    output_key: str,
+    source_value: float | None,
+) -> None:
+    """Populate clipped-area status fields while preserving legacy parser behavior."""
+    if roi_geometry is None:
+        entry[output_key] = source_value
+        entry["area_status"] = "source_feature_attributes"
+        entry["area_complete"] = None
+        entry["area_warnings"] = []
+        return
+
+    area_result = clipped_union_area_from_esri_geometries(geometries, roi_geometry)
+    entry[output_key] = area_result.area(unit, rounded_digits=2)
+    entry["area_status"] = area_result.status.value
+    entry["area_complete"] = geometry_complete and area_result.complete
+    entry["area_warnings"] = list(area_result.warnings)
+    if not geometry_complete:
+        entry["area_warnings"].append("ArcGIS truncated the matching feature set; clipped area may be understated.")
+
+
+def _append_area_warnings(warnings: List[str], records: List[Dict], *, label_key: str) -> None:
+    for record in records:
+        label = record.get(label_key) or "Unnamed feature"
+        for area_warning in record.get("area_warnings", []):
+            warning = f"{label} area: {area_warning}"
+            if warning not in warnings:
+                warnings.append(warning)
 
 
 def _parse_projects(features: List[Dict]) -> List[Dict]:

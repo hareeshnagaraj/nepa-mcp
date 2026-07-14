@@ -16,6 +16,7 @@ import logging
 from typing import Dict, List, Optional
 
 from nepa_mcp_common.arcgis import ArcGISService
+from nepa_mcp_common.spatial import AreaUnit, clipped_union_area_from_esri_geometries
 from nepa_mcp_common.validation import validate_coordinates
 from src.core.constants import (
     EFH_MAPPER_EFH_LAYER_ID,
@@ -78,7 +79,7 @@ def get_hapc_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> Dict:
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "hapc", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, _complete = _query_layer(
         EFH_MAPPER_HAPC_SERVICE_URL,
         EFH_MAPPER_HAPC_LAYER_ID,
         buffer_geom,
@@ -115,7 +116,7 @@ def get_efh_areas_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> 
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "efh_areas", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, _complete = _query_layer(
         EFH_MAPPER_EFHA_SERVICE_URL,
         EFH_MAPPER_EFHA_LAYER_ID,
         buffer_geom,
@@ -152,7 +153,7 @@ def get_salmon_efh_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) ->
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "watersheds", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, _complete = _query_layer(
         EFH_MAPPER_PACIFIC_SALMON_SERVICE_URL,
         EFH_MAPPER_PACIFIC_SALMON_LAYER_ID,
         buffer_geom,
@@ -182,21 +183,29 @@ def get_hms_cps_groundfish_efh_in_roi(lat: float, lon: float, buffer_miles: floa
         buffer_miles: Buffer radius in miles (default 25).
 
     Returns:
-        Dictionary with center, buffer_miles, total, efh_areas list.
+        Dictionary with center, buffer_miles, total, and efh_areas list.
+        Polygon acreage is unioned by designation and clipped to the ROI while
+        source feature acreage remains separately available.
     """
     lat, lon, buffer_miles = validate_coordinates(lat, lon, buffer_miles)
     buffer_geom = _create_buffer(lat, lon, buffer_miles)
     if buffer_geom is None:
         return _empty_result(lat, lon, buffer_miles, "efh_areas", "Buffer creation failed")
 
-    features, warnings = _query_layer(
+    features, warnings, geometry_complete = _query_layer(
         EFH_MAPPER_EFH_SERVICE_URL,
         EFH_MAPPER_EFH_LAYER_ID,
         buffer_geom,
         _COMMON_OUT_FIELDS,
         "EFH Mapper species",
+        return_geometry=True,
     )
-    efh_areas = _deduplicate_efh(features)
+    efh_areas = _deduplicate_efh(
+        features,
+        roi_geometry=buffer_geom,
+        geometry_complete=geometry_complete,
+    )
+    _append_area_warnings(warnings, efh_areas)
 
     return {
         "center": {"latitude": lat, "longitude": lon},
@@ -351,8 +360,24 @@ def _append_efh_entries(lines: List[str], entries: List[Dict]) -> None:
             species = item.get("species") or "Unknown"
             lifestage = f" — {item['lifestage']}" if item.get("lifestage") else ""
             zone = f" (Zone: {item['zone']})" if item.get("zone") else ""
-            acres = f" — {item['acres']:,} acres" if item.get("acres") else ""
+            if item.get("acres") is not None:
+                if item.get("area_status") not in (None, "source_feature_attributes"):
+                    label = "Partial area within ROI" if item.get("area_complete") is False else "Area within ROI"
+                    acres = f" — {label}: {item['acres']:,.2f} acres"
+                elif item.get("area_status") == "source_feature_attributes":
+                    acres = f" — Reported source area: {item['acres']:,.2f} acres"
+                else:
+                    acres = f" — {item['acres']:,} acres"
+            elif item.get("area_status"):
+                acres = f" — Area within ROI: unavailable ({item['area_status']})"
+            else:
+                acres = ""
             lines.append(f"- **{species}**{lifestage}{zone}{acres}")
+            if (
+                item.get("area_status") not in (None, "source_feature_attributes")
+                and item.get("source_acres") is not None
+            ):
+                lines.append(f"  Source feature-area total (not clipped to ROI): {item['source_acres']:,.2f} acres")
         lines.append("")
 
 
@@ -380,7 +405,9 @@ def _query_layer(
     buffer_geom: Dict,
     out_fields: str,
     layer_name: str,
-) -> tuple[List[Dict], List[str]]:
+    *,
+    return_geometry: bool = False,
+) -> tuple[List[Dict], List[str], bool]:
     try:
         result = ArcGISService.query_features(
             service_url,
@@ -389,12 +416,15 @@ def _query_layer(
             out_fields=out_fields,
             timeout=30,
             service_name=f"NOAA {layer_name}",
+            return_geometry=return_geometry,
+            out_sr=4326 if return_geometry else None,
+            simplify_geometry=not return_geometry,
         )
-        return result.features, result.warnings
+        return result.features, result.warnings, not result.truncated
     except Exception as e:
         warning = f"NOAA {layer_name} layer query failed: {e}"
         logger.warning(warning)
-        return [], [warning]
+        return [], [warning], False
 
 
 def _attr(attributes: Dict, *names: str, default=""):
@@ -410,9 +440,15 @@ def _attr(attributes: Dict, *names: str, default=""):
     return default
 
 
-def _deduplicate_efh(features: List[Dict]) -> List[Dict]:
-    """Deduplicate EFH Mapper polygons by (species, lifestage, zone, type)."""
+def _deduplicate_efh(
+    features: List[Dict],
+    *,
+    roi_geometry: Dict | None = None,
+    geometry_complete: bool = True,
+) -> List[Dict]:
+    """Deduplicate EFH polygons and optionally clip grouped acreage to the ROI."""
     grouped: Dict[tuple, Dict] = {}
+    geometries: Dict[tuple, List[Dict | None]] = {}
     for f in features:
         a = f.get("attributes", {})
         key = (
@@ -439,13 +475,38 @@ def _deduplicate_efh(features: List[Dict]) -> List[Dict]:
                 "data_caveat": _attr(a, "DATACAVEAT", "datacaveat") or "",
                 "region": _attr(a, "Region", "region") or "",
             }
+            geometries[key] = []
         grouped[key]["acres"] += _attr(a, "ACRES", "acres", default=0) or 0
+        geometries[key].append(f.get("geometry"))
 
     result = list(grouped.values())
-    for entry in result:
-        if not entry["acres"]:
-            entry["acres"] = None
+    for key, entry in grouped.items():
+        source_acres = round(float(entry["acres"]), 2) if entry["acres"] else None
+        entry["source_acres"] = source_acres
+        if roi_geometry is None:
+            entry["acres"] = source_acres
+            entry["area_status"] = "source_feature_attributes"
+            entry["area_complete"] = None
+            entry["area_warnings"] = []
+            continue
+
+        area_result = clipped_union_area_from_esri_geometries(geometries[key], roi_geometry)
+        entry["acres"] = area_result.area(AreaUnit.ACRES, rounded_digits=2)
+        entry["area_status"] = area_result.status.value
+        entry["area_complete"] = geometry_complete and area_result.complete
+        entry["area_warnings"] = list(area_result.warnings)
+        if not geometry_complete:
+            entry["area_warnings"].append("ArcGIS truncated the matching feature set; clipped area may be understated.")
     return sorted(result, key=lambda x: (x.get("fmc", ""), x.get("species", "")))
+
+
+def _append_area_warnings(warnings: List[str], records: List[Dict]) -> None:
+    for record in records:
+        label = record.get("species") or "Unnamed EFH designation"
+        for area_warning in record.get("area_warnings", []):
+            warning = f"{label} area: {area_warning}"
+            if warning not in warnings:
+                warnings.append(warning)
 
 
 def _parse_hapc(features: List[Dict]) -> List[Dict]:

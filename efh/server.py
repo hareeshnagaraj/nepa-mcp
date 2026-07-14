@@ -183,7 +183,8 @@ def get_efh_hms_cps_groundfish_tool(latitude: Latitude, longitude: Longitude, bu
     swordfish), Coastal Pelagic Species (sardine, anchovy, mackerel), and
     Pacific Coast Groundfish (rockfish, flatfish, roundfish) from NOAA Fisheries
     West Coast Region EFH services. Outside that geography, no hits may mean
-    out-of-scope.
+    out-of-scope. Polygon acreage is unioned by designation and clipped to the
+    requested point-buffer ROI; source feature acreage is retained separately.
 
     Args:
         latitude: Latitude in decimal degrees (WGS84), valid range -90 to 90.

@@ -164,8 +164,14 @@ class ArcGISService:
         service_name: str | None = None,
         simplify_geometry: bool = True,
         simplification_tolerance: float | None = None,
+        out_sr: int | None = None,
     ) -> ArcGISFeatureQueryResult:
-        """Query ArcGIS features with simplification, timeout, error-envelope, and pagination handling."""
+        """Query ArcGIS features with pagination and defensive response handling.
+
+        ``out_sr`` is especially important when ``return_geometry`` is true:
+        downstream spatial analysis must not infer a layer's native CRS from its
+        numeric coordinates.
+        """
         import requests
 
         url = f"{service_url}/{layer_id}/query"
@@ -184,6 +190,8 @@ class ArcGISService:
             "outFields": out_fields,
             "f": "json",
         }
+        if out_sr is not None:
+            base_params["outSR"] = int(out_sr)
 
         features: list[dict[str, Any]] = []
         warnings: list[str] = []
@@ -216,11 +224,27 @@ class ArcGISService:
             if not isinstance(page_features, list):
                 raise RuntimeError(f"{service_label} returned malformed features")
 
+            response_spatial_reference = payload.get("spatialReference")
+            if return_geometry and isinstance(response_spatial_reference, dict):
+                for feature in page_features:
+                    if not isinstance(feature, dict):
+                        continue
+                    feature_geometry = feature.get("geometry")
+                    if isinstance(feature_geometry, dict) and "spatialReference" not in feature_geometry:
+                        feature_geometry["spatialReference"] = response_spatial_reference
+
             features.extend(page_features)
             exceeded = bool(payload.get("exceededTransferLimit"))
             if len(features) >= max_features:
-                truncated = True
-                warnings.append(f"{service_label} reached the {max_features} feature safety cap; results are partial.")
+                # Reaching the cap exactly is not partial when ArcGIS also says
+                # there are no more records. A page that pushes us beyond the
+                # cap, or an explicit transfer-limit flag, is genuinely partial.
+                truncated = len(features) > max_features or exceeded
+                features = features[:max_features]
+                if truncated:
+                    warnings.append(
+                        f"{service_label} reached the {max_features} feature safety cap; results are partial."
+                    )
                 break
             if not exceeded and len(page_features) < page_size:
                 break

@@ -120,3 +120,75 @@ def test_query_features_can_skip_simplification(monkeypatch) -> None:
     )
 
     assert json.loads(posted_data["geometry"]) == geometry
+
+
+def test_query_features_requests_geometry_crs_and_preserves_response_crs(monkeypatch) -> None:
+    ArcGISService = _arcgis_service()
+    posted_data: dict[str, Any] = {}
+
+    class _GeometryResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "spatialReference": {"wkid": 4326},
+                "features": [
+                    {
+                        "attributes": {"NAME": "example"},
+                        "geometry": {"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]},
+                    }
+                ],
+            }
+
+    def fake_post(url: str, *, data: dict[str, Any], timeout: Any, headers: dict[str, str] | None):
+        posted_data.update(data)
+        return _GeometryResponse()
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    geometry = {
+        "rings": [[[0, 0], [0, 2], [2, 2], [2, 0], [0, 0]]],
+        "spatialReference": {"wkid": 4326},
+    }
+
+    result = ArcGISService.query_features(
+        "https://example.test/FeatureServer",
+        0,
+        geometry,
+        out_fields="NAME",
+        return_geometry=True,
+        out_sr=4326,
+    )
+
+    assert posted_data["returnGeometry"] is True
+    assert posted_data["outSR"] == 4326
+    assert result.features[0]["geometry"]["spatialReference"] == {"wkid": 4326}
+
+
+def test_query_features_exact_safety_cap_is_complete_without_more_records(monkeypatch) -> None:
+    ArcGISService = _arcgis_service()
+
+    class _ExactCapResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "features": [{"attributes": {"id": 1}}, {"attributes": {"id": 2}}],
+                "exceededTransferLimit": False,
+            }
+
+    monkeypatch.setattr(requests, "post", lambda *_args, **_kwargs: _ExactCapResponse())
+
+    result = ArcGISService.query_features(
+        "https://example.test/FeatureServer",
+        0,
+        {"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]},
+        out_fields="id",
+        page_size=2,
+        max_features=2,
+    )
+
+    assert len(result.features) == 2
+    assert result.truncated is False
+    assert result.warnings == []
