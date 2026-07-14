@@ -80,16 +80,14 @@ class TestSingleLayerFailure:
 
 
 class TestBothLayersFail:
-    def test_both_layers_failing_returns_empty_with_distinguishing_warning(self, monkeypatch):
-        """Documents the outage-vs-empty behavior.
+    def test_both_layers_failing_is_flagged_as_unavailable_not_a_no_hit(self, monkeypatch):
+        """A full outage must be distinguishable from a genuine no-hit screen.
 
-        When BOTH layer queries raise, the code does NOT raise and does NOT set
-        an ``error`` key: it returns ``total == 0`` / empty ``properties`` — the
-        same shape a genuine no-hit screen produces. The ONLY signal that this
-        is an outage rather than a clean negative result is the appended
-        warning. This test asserts that current reality; the ambiguity is that a
-        consumer ignoring ``warnings`` cannot tell an outage from a real
-        no-hit finding.
+        When BOTH layer queries raise, the api still does not propagate an
+        exception, but it now sets ``data_unavailable=True`` and an ``error``
+        message on the result — so a consumer that only inspects the structured
+        fields (not ``warnings``) cannot mistake an outage for "no properties
+        found". The distinguishing warning is retained as well.
         """
         api = _load_nrhp_api()
         _patch_roi(api, monkeypatch)
@@ -100,17 +98,18 @@ class TestBothLayersFail:
         monkeypatch.setattr(api.ArcGISService, "query_features", boom)
         result = api.get_nrhp_properties_in_roi(35.6, -105.9)
 
-        # No exception propagated; result looks like a completed (empty) screen.
+        # Still no exception; still an empty property list...
         assert result["total"] == 0
         assert result["properties"] == []
         assert result["nhl_count"] == 0
-        # The api does NOT set an error key in this path (buffer creation succeeded).
-        assert "error" not in result
-        # BUT it DOES distinguish outage from no-hit via an explicit warning.
+        # ...but the outage is now flagged in the structured result, not only warnings.
+        assert result.get("data_unavailable") is True
+        assert "error" in result
+        assert "not a no-hit finding" in result["error"]
+        # The distinguishing warning and per-layer failures are still recorded.
         assert any(
             "results are unavailable, not a no-hit finding" in w for w in result["warnings"]
         )
-        # Each layer failure is also individually recorded.
         assert sum("layer query failed" in w for w in result["warnings"]) == 2
 
     def test_formatter_renders_no_hit_text_but_keeps_outage_warning(self, monkeypatch):

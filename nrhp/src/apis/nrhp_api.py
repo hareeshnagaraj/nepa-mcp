@@ -62,10 +62,10 @@ def get_nrhp_properties_in_roi(lat: float, lon: float, buffer_miles: float = 25.
             "error": str(e),
         }
 
-    properties, warnings = _query_nrhp_layers(buffer_geom)
+    properties, warnings, successful_layers = _query_nrhp_layers(buffer_geom)
     nhl_count = sum(1 for p in properties if p.get("is_nhl") == "X")
 
-    return {
+    result = {
         "center": {"latitude": lat, "longitude": lon},
         "buffer_miles": buffer_miles,
         "total": len(properties),
@@ -74,8 +74,17 @@ def get_nrhp_properties_in_roi(lat: float, lon: float, buffer_miles: float = 25.
         "warnings": warnings,
     }
 
+    # When every layer query failed, an empty property list is NOT a valid
+    # no-hit screen — flag it explicitly so a consumer that ignores warnings
+    # cannot mistake an outage for "no properties found".
+    if successful_layers == 0:
+        result["data_unavailable"] = True
+        result["error"] = "NRHP data unavailable: all layer queries failed (not a no-hit finding)."
 
-def _query_nrhp_layers(buffer_geometry: Dict) -> tuple[List[Dict], List[str]]:
+    return result
+
+
+def _query_nrhp_layers(buffer_geometry: Dict) -> tuple[List[Dict], List[str], int]:
     """
     Query both NRHP point and polygon layers, de-duplicate, and return sorted list.
 
@@ -143,7 +152,7 @@ def _query_nrhp_layers(buffer_geometry: Dict) -> tuple[List[Dict], List[str]]:
     if successful_layers == 0:
         warnings.append("No NRHP layers were queried successfully; results are unavailable, not a no-hit finding.")
 
-    return sorted(all_properties, key=lambda x: x["name"]), warnings
+    return sorted(all_properties, key=lambda x: x["name"]), warnings, successful_layers
 
 
 def format_nrhp_summary(result: Dict) -> str:

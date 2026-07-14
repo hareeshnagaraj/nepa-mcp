@@ -131,12 +131,11 @@ class TestMalformedFeatures:
         # Falsy GIS_Acres (None) is treated as 0.0 without raising.
         assert result["records"][0]["gis_acres"] == 0.0
 
-    def test_null_features_payload_current_behavior(self, monkeypatch):
+    def test_null_features_payload_degrades_gracefully(self, monkeypatch):
         """A successful response whose ``features`` is null.
 
-        ``get_padus_in_roi`` iterates ``result.features`` directly, so a null
-        payload raises ``TypeError`` (None is not iterable). This documents the
-        current, unguarded behavior rather than asserting graceful handling.
+        ``get_padus_in_roi`` guards ``result.features or []``, so a null payload
+        degrades to an empty result instead of raising ``TypeError``.
         """
         api = _load_padus_api()
         _patch_roi(api, monkeypatch)
@@ -145,5 +144,6 @@ class TestMalformedFeatures:
             "query_features",
             lambda *_a, **_k: ArcGISFeatureQueryResult(features=None, warnings=[]),
         )
-        with pytest.raises(TypeError):
-            api.get_padus_in_roi(34.5, -106.5)
+        result = api.get_padus_in_roi(34.5, -106.5)
+        assert result["total_records"] == 0
+        assert result["records"] == []
