@@ -1,28 +1,27 @@
-<div align="center" style="text-align: center;">
+<p align="center">
+  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI — NEPA MCP Toolkit™" width="740">
+</p>
 
-  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI NEPA MCP Toolkit" width="640">
-  <br>
+<p align="center">
+  <strong>Federal environmental data and regulatory research for AI-assisted NEPA workflows</strong>
+</p>
 
-  <p><strong>Federal environmental data and regulatory research for AI-assisted NEPA workflows</strong></p>
-
-  <p>
+<p align="center">
   Works with<br>
   <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="docs/assets/badges/codex-client-config.svg" height="20"></a>
   <a href="#codex-plugin"><img alt="Codex plugin" src="docs/assets/badges/codex-plugin.svg" height="20"></a>
   <a href="#configure-an-mcp-client"><img alt="Claude Code client configuration" src="https://img.shields.io/badge/Claude_Code-MCP_Client-D97757?style=flat-square&amp;logo=anthropic&amp;logoColor=white" height="20"></a>
   <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="docs/assets/badges/vscode-mcp-client.svg" height="20"></a>
-  </p>
+</p>
 
-  <p>
+<p align="center">
   Built with<br>
   <a href="https://www.python.org/"><img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" height="20"></a>
   <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square" height="20"></a>
   <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white" height="20"></a>
   <a href="https://shapely.readthedocs.io/"><img alt="Shapely 2.0+" src="https://img.shields.io/badge/Shapely-2.0%2B-2F6F3E?style=flat-square" height="20"></a>
   <a href="LICENSE"><img alt="BSD 3-Clause License" src="https://img.shields.io/badge/License-BSD_3--Clause-F4B942?style=flat-square" height="20"></a>
-  </p>
-
-</div>
+</p>
 
 NEPA MCP is the Model Context Protocol (MCP) server layer of the PermitAI
 toolkit. It gives AI agents structured access to federal environmental,
