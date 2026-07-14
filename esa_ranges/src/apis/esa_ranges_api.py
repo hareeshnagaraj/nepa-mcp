@@ -15,6 +15,7 @@ import logging
 from typing import Dict, List
 
 from nepa_mcp_common.arcgis import ArcGISService
+from nepa_mcp_common.spatial import AreaUnit, clipped_union_area_from_esri_geometries
 from nepa_mcp_common.validation import (
     NOAA_WEST_COAST_EXPECTED_BOUNDS,
     add_empty_result_coverage_warning,
@@ -225,7 +226,9 @@ def get_esa_species_ranges_in_roi(lat: float, lon: float, buffer_miles: float = 
 
     Returns:
         Dictionary with center, buffer_miles, total, species list,
-        species_count, and watershed_count.
+        species_count, and watershed_count. Each range record retains source
+        watershed area separately from unioned area inside the point-buffer ROI,
+        with explicit status, completeness, and warnings.
     """
     lat, lon, buffer_miles = validate_coordinates(lat, lon, buffer_miles)
 
@@ -243,13 +246,13 @@ def get_esa_species_ranges_in_roi(lat: float, lon: float, buffer_miles: float = 
             "error": str(e),
         }
 
-    layer2_features, layer2_warnings = _query_layer(
+    layer2_features, layer2_warnings, layer2_complete = _query_layer(
         ESA_RANGES_LAYER_ID,
         _OUT_FIELDS,
         buffer_geom,
         "NOAA ESA species ranges Layer 2",
     )
-    layer1_features, layer1_warnings = _query_layer(
+    layer1_features, layer1_warnings, layer1_complete = _query_layer(
         ESA_RANGES_FISH_LAYER_ID,
         _LAYER1_OUT_FIELDS,
         buffer_geom,
@@ -257,10 +260,19 @@ def get_esa_species_ranges_in_roi(lat: float, lon: float, buffer_miles: float = 
     )
 
     species = _merge_ranges(
-        _deduplicate_ranges(layer2_features),
-        _normalize_layer1(layer1_features),
+        _deduplicate_ranges(
+            layer2_features,
+            roi_geometry=buffer_geom,
+            geometry_complete=layer2_complete,
+        ),
+        _normalize_layer1(
+            layer1_features,
+            roi_geometry=buffer_geom,
+            geometry_complete=layer1_complete,
+        ),
     )
     warnings = layer2_warnings + layer1_warnings
+    _append_area_warnings(warnings, species)
     unique_entities = {s["listed_entity"] for s in species}
     unique_hucs = {s["huc12"] for s in species if s.get("huc12")}
 
@@ -323,16 +335,46 @@ def format_esa_species_ranges_summary(result: Dict) -> str:
             sci = first.get("scientific_name", "")
             taxon = first.get("taxon", "")
             total_area = sum(r.get("area_sqkm") or 0 for r in records)
+            total_source_area = sum(r.get("source_area_sqkm") or 0 for r in records)
+            area_records = [
+                record for record in records if record.get("area_status") or record.get("area_sqkm") is not None
+            ]
+            has_clipped_area = any(
+                record.get("area_status") not in (None, "source_feature_attributes") for record in area_records
+            )
+            has_incomplete_area = any(record.get("area_complete") is False for record in area_records)
+            area_summary = ""
+            if any(record.get("area_sqkm") is not None for record in area_records):
+                if has_clipped_area and has_incomplete_area:
+                    label = "Partial area within ROI"
+                else:
+                    label = "Area within ROI" if has_clipped_area else "Reported source area"
+                area_summary = f" | {label}: {total_area:,.1f} sq km"
             lines += [
                 f"### {entity} (*{sci}*) — {status}",
-                f"Taxon: {taxon} | Watersheds: {len(records)}"
-                + (f" | Total area: {total_area:,.1f} sq km" if total_area else ""),
+                f"Taxon: {taxon} | Watersheds: {len(records)}" + area_summary,
                 "",
             ]
+            if has_clipped_area and total_source_area:
+                lines.append(f"Source watershed-area total (not clipped to ROI): {total_source_area:,.1f} sq km")
+                lines.append("")
             for r in sorted(records, key=lambda x: x.get("huc12_name", "")):
                 huc_name = r.get("huc12_name") or "Unknown"
                 huc = r.get("huc12") or ""
-                area = f" — {r['area_sqkm']:,.1f} sq km" if r.get("area_sqkm") else ""
+                if r.get("area_sqkm") is not None:
+                    if r.get("area_complete") is False:
+                        area_label = "partial area within ROI"
+                    else:
+                        area_label = (
+                            "within ROI"
+                            if r.get("area_status") not in (None, "source_feature_attributes")
+                            else "source area"
+                        )
+                    area = f" — {r['area_sqkm']:,.1f} sq km {area_label}"
+                elif r.get("area_status"):
+                    area = f" — area unavailable ({r['area_status']})"
+                else:
+                    area = ""
                 access = f" [{r['feature_access']}]" if r.get("feature_access") else ""
                 lines.append(f"- **{huc_name}** ({huc}){access}{area}")
             lines.append("")
@@ -347,9 +389,15 @@ def format_esa_species_ranges_summary(result: Dict) -> str:
     return "\n".join(lines)
 
 
-def _deduplicate_ranges(features: List[Dict]) -> List[Dict]:
-    """Deduplicate diced range fragments by (listentity, huc12), summing area."""
+def _deduplicate_ranges(
+    features: List[Dict],
+    *,
+    roi_geometry: Dict | None = None,
+    geometry_complete: bool = True,
+) -> List[Dict]:
+    """Deduplicate diced range fragments and optionally clip area to the ROI."""
     grouped: Dict[tuple, Dict] = {}
+    geometries: Dict[tuple, List[Dict | None]] = {}
 
     for f in features:
         a = f.get("attributes", {})
@@ -378,12 +426,22 @@ def _deduplicate_ranges(features: List[Dict]) -> List[Dict]:
                 "population_status": "",
                 "extinction_risk": "",
             }
+            geometries[key] = []
 
         grouped[key]["area_sqkm"] += a.get("areasqkm") or 0.0
+        geometries[key].append(f.get("geometry"))
 
     result = []
-    for entry in grouped.values():
-        entry["area_sqkm"] = round(entry["area_sqkm"], 2) if entry["area_sqkm"] else None
+    for key, entry in grouped.items():
+        source_area = round(entry["area_sqkm"], 2) if entry["area_sqkm"] else None
+        entry["source_area_sqkm"] = source_area
+        _set_clipped_area_fields(
+            entry,
+            geometries[key],
+            roi_geometry=roi_geometry,
+            geometry_complete=geometry_complete,
+            source_area=source_area,
+        )
         result.append(entry)
 
     return sorted(result, key=lambda x: (x["listed_entity"], x.get("huc12_name", "")))
@@ -394,7 +452,7 @@ def _query_layer(
     out_fields: str,
     geometry: Dict,
     service_name: str,
-) -> tuple[List[Dict], List[str]]:
+) -> tuple[List[Dict], List[str], bool]:
     """Query one Ranges_dice layer while allowing the other layer to succeed."""
     try:
         result = ArcGISService.query_features(
@@ -404,17 +462,26 @@ def _query_layer(
             out_fields=out_fields,
             timeout=30,
             service_name=service_name,
+            return_geometry=True,
+            out_sr=4326,
+            simplify_geometry=False,
         )
-        return result.features, result.warnings
+        return result.features, result.warnings, not result.truncated
     except Exception as exc:
         warning = f"{service_name} query failed: {exc}"
         logger.warning(warning)
-        return [], [warning]
+        return [], [warning], False
 
 
-def _normalize_layer1(features: List[Dict]) -> List[Dict]:
-    """Map Layer 1 fish records onto the Layer 2 range-record shape."""
+def _normalize_layer1(
+    features: List[Dict],
+    *,
+    roi_geometry: Dict | None = None,
+    geometry_complete: bool = True,
+) -> List[Dict]:
+    """Map Layer 1 fish records onto the common shape and optionally clip area."""
     grouped: Dict[tuple, Dict] = {}
+    geometries: Dict[tuple, List[Dict | None]] = {}
 
     for feature in features:
         attributes = feature.get("attributes", {})
@@ -453,21 +520,81 @@ def _normalize_layer1(features: List[Dict]) -> List[Dict]:
                     _EXTINCTION_RISK,
                 ),
             }
+            geometries[key] = []
 
-        grouped[key]["area_sqkm"] += attributes.get("hydrologic_hu_area_sqkm") or 0.0
+        # Layer 1 repeats the whole-HUC area on population/range rows. Use the
+        # largest reported value instead of multiplying that area when several
+        # rows share the same listed-entity/HUC key.
+        grouped[key]["area_sqkm"] = max(
+            grouped[key]["area_sqkm"],
+            attributes.get("hydrologic_hu_area_sqkm") or 0.0,
+        )
+        geometries[key].append(feature.get("geometry"))
 
     normalized = []
-    for entry in grouped.values():
-        entry["area_sqkm"] = round(entry["area_sqkm"], 2) if entry["area_sqkm"] else None
+    for key, entry in grouped.items():
+        source_area = round(entry["area_sqkm"], 2) if entry["area_sqkm"] else None
+        entry["source_area_sqkm"] = source_area
+        _set_clipped_area_fields(
+            entry,
+            geometries[key],
+            roi_geometry=roi_geometry,
+            geometry_complete=geometry_complete,
+            source_area=source_area,
+        )
         normalized.append(entry)
     return normalized
 
 
+def _set_clipped_area_fields(
+    entry: Dict,
+    geometries: List[Dict | None],
+    *,
+    roi_geometry: Dict | None,
+    geometry_complete: bool,
+    source_area: float | None,
+) -> None:
+    """Populate the common area/provenance fields for one grouped range record."""
+    if roi_geometry is None:
+        entry["area_sqkm"] = source_area
+        entry["area_status"] = "source_feature_attributes"
+        entry["area_complete"] = None
+        entry["area_warnings"] = []
+        return
+
+    area_result = clipped_union_area_from_esri_geometries(geometries, roi_geometry)
+    entry["area_sqkm"] = area_result.area(AreaUnit.SQUARE_KILOMETERS, rounded_digits=2)
+    entry["area_status"] = area_result.status.value
+    entry["area_complete"] = geometry_complete and area_result.complete
+    entry["area_warnings"] = list(area_result.warnings)
+    if not geometry_complete:
+        entry["area_warnings"].append("ArcGIS truncated the matching feature set; clipped area may be understated.")
+
+
+def _append_area_warnings(warnings: List[str], records: List[Dict]) -> None:
+    """Promote per-record area warnings to the top-level tool warning list."""
+    for record in records:
+        label = record.get("listed_entity") or "Unnamed range"
+        for area_warning in record.get("area_warnings", []):
+            warning = f"{label} area: {area_warning}"
+            if warning not in warnings:
+                warnings.append(warning)
+
+
 def _merge_ranges(layer2: List[Dict], layer1: List[Dict]) -> List[Dict]:
-    """Merge complementary range layers, preferring Layer 2 on collisions."""
+    """Merge complementary layers, flagging Layer-2 precedence as incomplete."""
     merged: Dict[tuple, Dict] = {}
-    for entry in layer1 + layer2:
+    for entry in layer1:
         merged[(entry["listed_entity"], entry.get("huc12", ""))] = entry
+    for entry in layer2:
+        key = (entry["listed_entity"], entry.get("huc12", ""))
+        if key in merged:
+            entry["area_complete"] = False
+            entry.setdefault("area_warnings", []).append(
+                "Both NOAA ESA range layers returned this listed-entity/HUC record; "
+                "Layer 2 metadata was retained, so clipped area may omit distinct Layer 1 geometry."
+            )
+        merged[key] = entry
     return sorted(
         merged.values(),
         key=lambda entry: (entry["listed_entity"], entry.get("huc12_name", "")),

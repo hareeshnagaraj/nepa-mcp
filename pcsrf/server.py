@@ -128,6 +128,8 @@ def get_pcsrf_critical_habitat_tool(latitude: Latitude, longitude: Longitude, bu
 
     Returns designated critical habitat (polygons and lines) for NOAA-managed
     species from the 2021-09-04 generalized NOAA critical-habitat services.
+    Polygon area is unioned and clipped to the requested point-buffer ROI;
+    upstream whole-feature area and line-length attributes remain distinguishable.
     Use current agency sources to confirm designations before relying on results.
 
     Args:
@@ -152,7 +154,8 @@ def get_pcsrf_efh_tool(latitude: Latitude, longitude: Longitude, buffer_miles: B
 
     Returns Atlantic salmon Essential Fish Habitat and Habitat Areas of
     Particular Concern (HAPC) buffer zones. This is an Atlantic salmon dataset,
-    not Pacific salmon or PCSRF project data.
+    not Pacific salmon or PCSRF project data. Polygon area is unioned and
+    clipped to the requested point-buffer ROI with explicit completeness status.
 
     Args:
         latitude: Latitude in decimal degrees (WGS84), valid range -90 to 90.

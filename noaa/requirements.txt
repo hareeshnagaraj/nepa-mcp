@@ -6,7 +6,8 @@ fastmcp==3.4.4
 # HTTP/Networking
 requests>=2.32.0
 
-# Geometry operations (for polygon simplification)
+# Geometry operations and equal-area measurement
+pyproj>=3.7.0
 shapely>=2.0.0
 
 # HTTP Server (required for streamable-http)

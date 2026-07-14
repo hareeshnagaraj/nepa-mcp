@@ -105,6 +105,8 @@ def get_noaa_critical_habitat_in_roi_tool(
     NOAA-managed species including salmon, steelhead, marine mammals, and
     marine fish within the West Coast Region service. Outside that service
     geography, a no-hit result may mean out-of-scope rather than no ESA concern.
+    Polygon area is unioned across diced fragments and clipped to the ROI;
+    upstream whole-feature area is retained separately for provenance.
 
     Args:
         latitude: Latitude in decimal degrees (WGS84), valid range -90 to 90.

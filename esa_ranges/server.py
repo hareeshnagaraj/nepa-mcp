@@ -103,7 +103,9 @@ def get_esa_species_ranges_in_roi_tool(
     Returns ESA-listed salmon and steelhead range records from the NOAA
     Fisheries West Coast Region, broken down by HUC-12 watershed. Outside the
     West Coast Region service geography, a no-hit result may mean out-of-scope
-    rather than no ESA concern.
+    rather than no ESA concern. Watershed polygons are unioned by range record
+    and clipped to the requested point-buffer ROI; upstream whole-watershed
+    area is retained separately for provenance.
 
     Args:
         latitude: Latitude in decimal degrees (WGS84), valid range -90 to 90.
