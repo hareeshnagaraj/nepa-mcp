@@ -31,21 +31,14 @@ toolkit. It gives AI agents structured access to federal environmental,
 regulatory, biological, cultural, socioeconomic, and jurisdictional data used
 in NEPA screening and permitting research.
 
-<p align="center">
-  <strong>19 MCP servers</strong> &nbsp;·&nbsp;
-  <strong>46 tools</strong> &nbsp;·&nbsp;
-  <strong>32 live GIS overlays</strong>
-</p>
-
-One install provides 19 independently deployable MCP servers. **One Map
-Composer MCP server creates a shared project-area view across eight federal
-data publishers.** It queries their public GIS services at request time and
-composes selected results into an interactive map or a provenance-rich GeoJSON
-export.
+One install provides 19 independently deployable MCP servers and 46 tools. The
+[Map Composer MCP server](docs/map-composer.md) adds 32 live GIS overlays
+across eight federal data publishers. It queries their public GIS services at
+request time and composes selected results into an interactive map or a
+provenance-rich GeoJSON export.
 
 **Explore capabilities:** Browse the [MCP Tool Catalog](docs/mcp-tool-catalog.md)
-for all 19 servers and 46 tools, or see the [Map Composer guide and complete
-32-layer catalog](docs/map-composer.md).
+for the complete server and tool inventory.
 
 > [!IMPORTANT]
 > NEPA MCP is a screening and research aid. It does not make legal or agency
@@ -144,12 +137,12 @@ partial, and failed layer counts so source coverage remains visible.
 
 <p align="center">
   <a href="docs/map-composer.md">
-    <img src="docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 10-mile Washington, DC and Chesapeake Bay watershed project area with 10 overlays visible" width="900">
+    <img src="docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 20-mile Chesapeake Bay watershed project area with 12 overlays visible" width="900">
   </a>
 </p>
 
 <p align="center">
-  <em>Washington, DC and Chesapeake Bay watershed, 10-mile project area: 10 overlays shown from 14 returned locally in a 32-layer request. The generated map keeps every returned layer independently toggleable.</em>
+  <em>Chesapeake Bay watershed, 20-mile project area: 12 overlays shown from 16 returned locally in a 32-layer request, with no failed sources. The generated map keeps every returned layer independently toggleable.</em>
 </p>
 
 The server exposes three tools:
