@@ -98,17 +98,6 @@ NPS_BOUNDARIES_LAYER_ID = 2
 
 
 # =============================================================================
-# FEMA NATIONAL FLOOD HAZARD LAYER (NFHL)
-# =============================================================================
-
-# FEMA Flood Hazard Zones (reduced set) - for E.O. 11988 floodplain compliance
-FEMA_FLOOD_ZONES_URL = (
-    "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Flood_Hazard_Reduced_Set_gdb/FeatureServer"
-)
-FEMA_FLOOD_ZONES_LAYER_ID = 0
-
-
-# =============================================================================
 # BLM SPECIES/HABITAT AND CONTEXTUAL SERVICES
 # =============================================================================
 

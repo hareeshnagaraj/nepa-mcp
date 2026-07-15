@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 import requests
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from src.apis.counties_api import get_counties_in_roi
 from src.core.fips_utils import STATE_FIPS_TO_NAME, STATE_FIPS_TO_ABBR
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Optimal throughput observed at 10-20 concurrent requests
 MAX_CONCURRENT_REQUESTS = 15  # Balanced setting for good throughput
 GBIF_RATE_LIMIT_SECONDS = 0.05  # Minimal delay (GBIF is very permissive)
+MILES_PER_DEGREE_LATITUDE = 69.0
 
 # IUCN Red List category codes for GBIF API
 # CR = Critically Endangered, EN = Endangered, VU = Vulnerable, NT = Near Threatened
@@ -38,6 +41,33 @@ IUCN_CODE_TO_NAME = {
     "VU": "Vulnerable",
     "NT": "Near Threatened",
 }
+
+
+def _gbif_year_range(min_year: int) -> str:
+    """Return an inclusive GBIF year range through the current year."""
+
+    return f"{min_year},{datetime.now(timezone.utc).year}"
+
+
+def _gbif_bbox_params(lat: float, lon: float, buffer_miles: float) -> Dict[str, str]:
+    """Return a bounding box that fully covers a radius at the supplied latitude."""
+
+    lat_delta = buffer_miles / MILES_PER_DEGREE_LATITUDE
+    min_lat = max(-90.0, lat - lat_delta)
+    max_lat = min(90.0, lat + lat_delta)
+
+    if min_lat <= -90.0 or max_lat >= 90.0:
+        min_lon = -180.0
+        max_lon = 180.0
+    else:
+        lon_delta = buffer_miles / (MILES_PER_DEGREE_LATITUDE * math.cos(math.radians(lat)))
+        min_lon = max(-180.0, lon - lon_delta)
+        max_lon = min(180.0, lon + lon_delta)
+
+    return {
+        "decimalLatitude": f"{min_lat:.6f},{max_lat:.6f}",
+        "decimalLongitude": f"{min_lon:.6f},{max_lon:.6f}",
+    }
 
 
 # =============================================================================
@@ -193,19 +223,14 @@ def get_gbif_occurrences_in_roi(
         - summary: Statistics by conservation status
     """
 
-    # Convert buffer miles to decimal degrees (approximate)
-    # 1 degree latitude ≈ 69 miles
-    buffer_degrees = buffer_miles / 69.0
-
     # Base query parameters for all GBIF requests
     base_params = {
-        "decimalLatitude": f"{lat - buffer_degrees},{lat + buffer_degrees}",
-        "decimalLongitude": f"{lon - buffer_degrees},{lon + buffer_degrees}",
+        **_gbif_bbox_params(lat, lon, buffer_miles),
         "country": "US",
         "hasCoordinate": "true",
         "hasGeospatialIssue": "false",
         "occurrenceStatus": "PRESENT",
-        "year": f"{min_year},2025",
+        "year": _gbif_year_range(min_year),
         "limit": 300,  # GBIF max per request
     }
 
@@ -412,7 +437,7 @@ def _query_gbif_by_county(
         "hasCoordinate": "true",
         "hasGeospatialIssue": "false",
         "occurrenceStatus": "PRESENT",
-        "year": f"{min_year},2025",
+        "year": _gbif_year_range(min_year),
         "limit": 300,
     }
 

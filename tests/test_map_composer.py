@@ -6,11 +6,15 @@ import importlib
 import inspect
 import json
 import stat
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+import requests
 
 from nepa_mcp.loader import load_server_module
+from nepa_mcp_common import arcgis as arcgis_module
+from nepa_mcp_common.arcgis import ArcGISFeatureQueryResult
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -205,16 +209,33 @@ def test_collection_converts_fetcher_exception_to_failed_status(monkeypatch, cap
     assert capsys.readouterr().out == ""
 
 
-def test_arcgis_error_payload_is_not_treated_as_an_empty_layer() -> None:
+def test_arcgis_error_payload_is_not_treated_as_an_empty_layer(monkeypatch) -> None:
     _, collector, _ = _load_map_modules()
-    with pytest.raises(RuntimeError, match="Service unavailable: retry later"):
-        collector._raise_for_arcgis_error(
-            {
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
                 "error": {
                     "message": "Service unavailable",
                     "details": ["retry later"],
                 }
             }
+
+    monkeypatch.setattr(requests, "post", lambda *_args, **_kwargs: Response())
+
+    with pytest.raises(RuntimeError, match="Service unavailable: retry later"):
+        collector._query_arcgis_features(
+            "https://example.test/FeatureServer/0/query",
+            {
+                "geometry": json.dumps({"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]}),
+                "geometryType": "esriGeometryPolygon",
+                "outFields": "*",
+                "f": "json",
+            },
+            timeout=30,
         )
 
 
@@ -249,7 +270,7 @@ def test_optional_species_enrichment_warning_marks_counties_partial(monkeypatch)
                 ]
             }
 
-    monkeypatch.setattr(collector.requests, "post", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr(requests, "post", lambda *_args, **_kwargs: Response())
     monkeypatch.setattr(
         collector,
         "_enrich_counties_with_species",
@@ -280,23 +301,32 @@ def test_arcgis_spatial_queries_use_post_bodies(monkeypatch) -> None:
         def json(self):
             return {"features": []}
 
-    def post(url, *, data, timeout):
-        captured.update(url=url, data=data, timeout=timeout)
+    def post(url, *, data, timeout, headers=None):
+        captured.update(url=url, data=data, timeout=timeout, headers=headers)
         return Response()
 
-    monkeypatch.setattr(collector.requests, "post", post)
-    result = collector._post_arcgis_json(
+    monkeypatch.setattr(requests, "post", post)
+    result = collector._query_arcgis_features(
         "https://example.test/FeatureServer/0/query",
-        {"geometry": "large-polygon", "f": "json"},
+        {
+            "geometry": json.dumps({"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]}),
+            "geometryType": "esriGeometryPolygon",
+            "outFields": "NAME",
+            "where": "TYPE = 'example'",
+            "maxAllowableOffset": 0.002,
+            "f": "json",
+        },
         timeout=30,
     )
 
-    assert result == {"features": []}
-    assert captured == {
-        "url": "https://example.test/FeatureServer/0/query",
-        "data": {"geometry": "large-polygon", "f": "json"},
-        "timeout": 30,
-    }
+    assert result.features == []
+    assert captured["url"] == "https://example.test/FeatureServer/0/query"
+    assert captured["timeout"] == 30
+    assert captured["headers"] is None
+    assert captured["data"]["where"] == "TYPE = 'example'"
+    assert captured["data"]["maxAllowableOffset"] == 0.002
+    assert captured["data"]["resultOffset"] == 0
+    assert captured["data"]["resultRecordCount"] == 2000
 
 
 def test_arcgis_spatial_queries_retry_transient_failures(monkeypatch) -> None:
@@ -315,19 +345,24 @@ def test_arcgis_spatial_queries_retry_transient_failures(monkeypatch) -> None:
         nonlocal attempts
         attempts += 1
         if attempts == 1:
-            raise collector.requests.Timeout("temporary timeout")
+            raise requests.Timeout("temporary timeout")
         return Response()
 
-    monkeypatch.setattr(collector.requests, "post", post)
-    monkeypatch.setattr(collector.time, "sleep", delays.append)
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(arcgis_module.time, "sleep", delays.append)
 
-    result = collector._post_arcgis_json(
+    result = collector._query_arcgis_features(
         "https://example.test/FeatureServer/0/query",
-        {"geometry": "large-polygon", "f": "json"},
+        {
+            "geometry": json.dumps({"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]}),
+            "geometryType": "esriGeometryPolygon",
+            "outFields": "*",
+            "f": "json",
+        },
         timeout=30,
     )
 
-    assert result == {"features": []}
+    assert result.features == []
     assert attempts == 2
     assert delays == [0.25]
 
@@ -343,11 +378,11 @@ def test_drifted_service_contracts_are_current(monkeypatch) -> None:
         def json(self):
             return {"features": []}
 
-    def post(url, *, data, timeout):
+    def post(url, *, data, timeout, headers=None):
         calls.append((url, data, timeout))
         return Response()
 
-    monkeypatch.setattr(collector.requests, "post", post)
+    monkeypatch.setattr(requests, "post", post)
     polygon = {
         "rings": [[[-77.1, 38.7], [-76.9, 38.7], [-76.9, 38.9], [-77.1, 38.7]]],
         "spatialReference": {"wkid": 4326},
@@ -363,6 +398,120 @@ def test_drifted_service_contracts_are_current(monkeypatch) -> None:
     assert "GNIS_ID" not in calls[1][1]["outFields"]
     assert "InterAgencyFirePerimeterHistory_All_Years_View" in calls[2][0]
     assert calls[2][1]["outFields"] == "INCIDENT,FIRE_YEAR_INT,FIRE_YEAR,FEATURE_CA,GIS_ACRES,AGENCY,SOURCE"
+
+
+def test_esri_multipart_polygon_preserves_disjoint_exteriors_and_holes() -> None:
+    _, collector, _ = _load_map_modules()
+    outer = [[0, 0], [0, 4], [4, 4], [4, 0], [0, 0]]
+    hole = [[1, 1], [3, 1], [3, 3], [1, 3], [1, 1]]
+    disjoint_outer = [[10, 10], [10, 12], [12, 12], [12, 10], [10, 10]]
+
+    geometry = collector.esri_to_geojson_geometry(
+        {"rings": [outer, hole, disjoint_outer]},
+        "esriGeometryPolygon",
+    )
+
+    assert geometry["type"] == "MultiPolygon"
+    assert len(geometry["coordinates"]) == 2
+    assert geometry["coordinates"][0] == [outer, hole]
+    assert geometry["coordinates"][1] == [disjoint_outer]
+
+
+def test_critical_habitat_and_nhd_query_the_geodesic_roi_polygon(monkeypatch) -> None:
+    _, collector, _ = _load_map_modules()
+    buffer_geometry = {
+        "rings": [[[-123.4, 47.4], [-122.8, 47.4], [-122.8, 47.8], [-123.4, 47.4]]],
+        "spatialReference": {"wkid": 4326},
+    }
+    calls = []
+
+    def query(url, params, **kwargs):
+        calls.append((url, params, kwargs))
+        return ArcGISFeatureQueryResult(features=[], warnings=[])
+
+    monkeypatch.setattr(collector, "_query_arcgis_features", query)
+
+    collector.get_critical_habitat_geojson(47.6, -123.1, 25, buffer_geometry)
+    collector.get_nhd_lakes_geojson(47.6, -123.1, 25, buffer_geometry)
+
+    assert len(calls) == 2
+    for _url, params, _kwargs in calls:
+        assert params["geometryType"] == "esriGeometryPolygon"
+        assert json.loads(params["geometry"]) == buffer_geometry
+
+
+def test_query_truncation_marks_feature_collection_partial() -> None:
+    _, collector, _ = _load_map_modules()
+    feature = {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [-77, 38]},
+        "properties": {},
+    }
+    query_result = ArcGISFeatureQueryResult(
+        features=[],
+        warnings=["Example service reached its safety cap; results are partial."],
+        truncated=True,
+    )
+
+    result = collector._feature_collection([feature], query_result)
+
+    assert result["status"] == "partial"
+    assert result["warnings"] == query_result.warnings
+
+
+def test_feature_collection_drops_empty_geometry_with_a_partial_warning() -> None:
+    _, collector, _ = _load_map_modules()
+
+    result = collector._feature_collection(
+        [{"type": "Feature", "geometry": None, "properties": {}}],
+        ArcGISFeatureQueryResult(features=[], warnings=[]),
+    )
+
+    assert result["features"] == []
+    assert result["status"] == "partial"
+    assert result["warnings"] == ["Dropped 1 feature(s) whose upstream geometry was empty or malformed."]
+
+
+def test_grsg_null_eis_hab_does_not_fail_the_layer(monkeypatch) -> None:
+    _, collector, _ = _load_map_modules()
+    raw_feature = {
+        "attributes": {
+            "EIS_HAB": None,
+            "Habitat_Type": "Priority Habitat",
+            "Source": "BLM",
+            "SUM_ACRES": 100,
+        },
+        "geometry": {"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]},
+    }
+    monkeypatch.setattr(
+        collector,
+        "_query_arcgis_features",
+        lambda *_args, **_kwargs: ArcGISFeatureQueryResult(features=[raw_feature], warnings=[]),
+    )
+
+    result = collector.get_grsg_habitat_geojson(
+        {"rings": [[[0, 0], [0, 2], [2, 0], [0, 0]]], "spatialReference": {"wkid": 4326}}
+    )
+
+    assert result["status"] == "ok"
+    assert result["features"][0]["properties"]["name"] == "Priority Habitat"
+
+
+def test_gbif_roi_query_uses_the_current_year(monkeypatch) -> None:
+    _load_map_modules()
+    gbif_api = importlib.import_module("src.apis.gbif_api")
+    captured = {}
+
+    def query(params, _max_records):
+        captured.update(params)
+        return []
+
+    monkeypatch.setattr(gbif_api, "_gbif_paginated_query", query)
+    gbif_api.get_gbif_occurrences_in_roi(47.6, -122.3, 25, threatened_only=False)
+
+    assert captured["year"] == f"2015,{datetime.now(timezone.utc).year}"
+    min_lon, max_lon = (float(value) for value in captured["decimalLongitude"].split(","))
+    assert max_lon - min_lon > 2 * (25 / 69.0)
 
 
 def test_renderer_escapes_title_feature_values_and_unsafe_links(
@@ -400,6 +549,40 @@ def test_renderer_escapes_title_feature_values_and_unsafe_links(
     assert malicious not in html
     assert "href='javascript:" not in html
     assert stat.S_IMODE(output.stat().st_mode) == 0o600
+
+
+def test_renderer_skips_null_geometry_without_aborting_map(
+    tmp_path: Path,
+    minimal_layers_data: dict,
+) -> None:
+    _, _, renderer = _load_map_modules()
+    data = copy.deepcopy(minimal_layers_data)
+    data["counties"]["features"].append(
+        {
+            "type": "Feature",
+            "geometry": None,
+            "properties": {"name": "Malformed upstream record"},
+        }
+    )
+    output = tmp_path / "null-geometry-map.html"
+
+    renderer.render_environmental_map(data, 38.8, -77.0, str(output))
+
+    assert output.exists()
+    assert "District of Columbia" in output.read_text(encoding="utf-8")
+
+
+def test_renderer_escapes_value_bearing_formatter_output() -> None:
+    _, _, renderer = _load_map_modules()
+    malicious = "</td><script>alert(1)</script>"
+
+    popup = renderer.create_layer_popup(
+        {"name": "Lake", "elevation": malicious, "area_acres": malicious},
+        "nhd_lakes",
+    )
+
+    assert malicious not in popup
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in popup
 
 
 def test_renderer_exposes_layer_availability_summary(

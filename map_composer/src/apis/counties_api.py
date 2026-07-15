@@ -8,8 +8,6 @@ can remain small and purpose-built.
 
 from __future__ import annotations
 
-import json
-import requests
 from typing import Dict, List
 
 from nepa_mcp_common.arcgis import ArcGISService
@@ -51,34 +49,22 @@ def _query_tigerweb_counties(buffer_geometry: Dict) -> List[Dict]:
     Returns:
         List of county dictionaries with name, state, FIPS code
     """
-    # Simplify polygon to reduce URL length
-    simplified_geom = ArcGISService.simplify_polygon_geometry(buffer_geometry)
-
     # Census TIGERweb Counties service
     tigerweb_url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer"
     county_layer_id = 82  # Counties layer in TIGERweb
 
-    url = f"{tigerweb_url}/{county_layer_id}/query"
-
-    params = {
-        "geometry": json.dumps(simplified_geom),
-        "geometryType": "esriGeometryPolygon",
-        "inSR": 4326,  # Input spatial reference (WGS84)
-        "spatialRel": "esriSpatialRelIntersects",
-        "returnGeometry": False,
-        "outFields": "NAME,STATE,BASENAME,LSADC,GEOID,CENTLAT,CENTLON",
-        "f": "json",
-    }
-
-    response = requests.get(url, params=params, timeout=30)
-    response.raise_for_status()
-
-    result = response.json()
-    if "error" in result:
-        error = result["error"]
-        message = error.get("message", "Unknown ArcGIS error") if isinstance(error, dict) else str(error)
-        raise RuntimeError(f"Census TIGERweb county request failed: {message}")
-    features = result.get("features", [])
+    result = ArcGISService.query_features(
+        tigerweb_url,
+        county_layer_id,
+        buffer_geometry,
+        out_fields="NAME,STATE,BASENAME,LSADC,GEOID,CENTLAT,CENTLON",
+        return_geometry=False,
+        timeout=30,
+        service_name="Census TIGERweb counties",
+    )
+    if result.truncated:
+        raise RuntimeError(" ".join(result.warnings))
+    features = result.features
 
     # Process and format county data
     counties = []

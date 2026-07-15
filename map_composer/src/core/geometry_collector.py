@@ -7,16 +7,14 @@ for use in multi-layer environmental mapping.
 
 import json
 import logging
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-import requests
 from shapely.geometry import shape, Point as ShapelyPoint
 
-from nepa_mcp_common.arcgis import ArcGISService
+from nepa_mcp_common.arcgis import ArcGISFeatureQueryResult, ArcGISService
 from src.core.constants import (
     TRIBAL_LAYERS,
     TIGERWEB_AIANNHA_URL,
@@ -53,8 +51,6 @@ from src.core.constants import (
     USFS_ROADLESS_AREAS_LAYER_ID,
     NPS_BOUNDARIES_URL,
     NPS_BOUNDARIES_LAYER_ID,
-    FEMA_FLOOD_ZONES_URL,
-    FEMA_FLOOD_ZONES_LAYER_ID,
     PADUS_URL,
     PADUS_LAYER_ID,
 )
@@ -75,61 +71,94 @@ class CollectionResult:
         return [warning for status in self.statuses.values() for warning in status.get("warnings", [])]
 
 
-def _raise_for_arcgis_error(payload: Dict) -> None:
-    """Raise when an ArcGIS service returns an HTTP-200 error payload."""
+def _query_arcgis_features(
+    url: str,
+    params: Dict,
+    *,
+    timeout: float,
+    max_features: int = 4500,
+) -> ArcGISFeatureQueryResult:
+    """Route a Map Composer query through the shared, completeness-aware helper."""
 
-    error = payload.get("error")
-    if not error:
-        return
-    if isinstance(error, dict):
-        message = error.get("message", "Unknown ArcGIS error")
-        details = error.get("details") or []
-        if details:
-            message = f"{message}: {'; '.join(str(detail) for detail in details)}"
-    else:
-        message = str(error)
-    raise RuntimeError(message)
+    suffix = "/query"
+    if not url.endswith(suffix):
+        raise ValueError(f"ArcGIS feature query URL must end with {suffix!r}: {url}")
 
+    layer_url = url[: -len(suffix)]
+    service_url, layer_id_text = layer_url.rsplit("/", 1)
+    try:
+        layer_id = int(layer_id_text)
+    except ValueError as exc:
+        raise ValueError(f"ArcGIS feature query URL has a non-numeric layer id: {url}") from exc
 
-def _post_arcgis_json(url: str, params: Dict, *, timeout: float, max_attempts: int = 3) -> Dict:
-    """POST an ArcGIS query and return a validated JSON object.
-
-    Spatial query geometries routinely exceed safe URL lengths. ArcGIS query
-    endpoints accept form-encoded POST bodies, which avoids proxy and server
-    failures caused by long GET URLs while preserving the same query contract.
-    """
-
-    for attempt in range(1, max_attempts + 1):
+    geometry = params.get("geometry")
+    if isinstance(geometry, str):
         try:
-            response = requests.post(url, data=params, timeout=timeout)
-            response.raise_for_status()
-            break
-        except requests.RequestException as exc:
-            status_code = getattr(getattr(exc, "response", None), "status_code", None)
-            retriable = isinstance(exc, (requests.Timeout, requests.ConnectionError)) or status_code in {
-                429,
-                500,
-                502,
-                503,
-                504,
-            }
-            if attempt >= max_attempts or not retriable:
-                raise
-            delay_seconds = 0.25 * (2 ** (attempt - 1))
-            logger.warning(
-                "Transient ArcGIS query failure on attempt %s/%s; retrying in %.2fs: %s",
-                attempt,
-                max_attempts,
-                delay_seconds,
-                exc,
-            )
-            time.sleep(delay_seconds)
+            geometry = json.loads(geometry)
+        except json.JSONDecodeError as exc:
+            raise ValueError("ArcGIS query geometry must be a JSON object") from exc
+    if not isinstance(geometry, dict):
+        raise ValueError("ArcGIS query geometry must be an object")
 
-    payload = response.json()
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"ArcGIS query returned unexpected JSON type: {type(payload).__name__}")
-    _raise_for_arcgis_error(payload)
-    return payload
+    managed_params = {
+        "geometry",
+        "geometryType",
+        "inSR",
+        "spatialRel",
+        "returnGeometry",
+        "outFields",
+        "outSR",
+        "f",
+        "resultOffset",
+        "resultRecordCount",
+    }
+    extra_params = {key: value for key, value in params.items() if key not in managed_params}
+
+    return ArcGISService.query_features(
+        service_url,
+        layer_id,
+        geometry,
+        out_fields=str(params.get("outFields", "*")),
+        return_geometry=bool(params.get("returnGeometry", False)),
+        timeout=timeout,
+        page_size=int(params.get("resultRecordCount", ArcGISService.DEFAULT_PAGE_SIZE)),
+        max_features=max_features,
+        simplify_geometry=False,
+        out_sr=int(params["outSR"]) if params.get("outSR") is not None else None,
+        geometry_type=str(params.get("geometryType", "esriGeometryPolygon")),
+        in_sr=int(params.get("inSR", 4326)),
+        spatial_relation=str(params.get("spatialRel", "esriSpatialRelIntersects")),
+        extra_params=extra_params,
+    )
+
+
+def _feature_collection(
+    features: List[Dict],
+    *query_results: ArcGISFeatureQueryResult,
+    warnings: Optional[List[str]] = None,
+) -> Dict:
+    """Build a FeatureCollection while preserving partial-query warnings."""
+
+    combined_warnings = list(warnings or [])
+    for query_result in query_results:
+        combined_warnings.extend(query_result.warnings)
+    valid_features = [
+        feature
+        for feature in features
+        if isinstance(feature, dict)
+        and isinstance(feature.get("geometry"), dict)
+        and feature["geometry"].get("type")
+        and feature["geometry"].get("coordinates")
+    ]
+    dropped_count = len(features) - len(valid_features)
+    if dropped_count:
+        combined_warnings.append(f"Dropped {dropped_count} feature(s) whose upstream geometry was empty or malformed.")
+    return {
+        "type": "FeatureCollection",
+        "features": valid_features,
+        "status": "partial" if combined_warnings else ("ok" if valid_features else "empty"),
+        "warnings": combined_warnings,
+    }
 
 
 def _failed_feature_collection(message: str) -> Dict:
@@ -368,7 +397,71 @@ def esri_to_geojson_geometry(esri_geometry: Dict, geometry_type: str) -> Optiona
         rings = esri_geometry.get("rings", [])
         if not rings:
             return None
-        return {"type": "Polygon", "coordinates": rings}
+
+        closed_rings = []
+        ring_polygons = []
+        for ring in rings:
+            if not isinstance(ring, list) or len(ring) < 3:
+                continue
+            closed_ring = list(ring)
+            if closed_ring[0] != closed_ring[-1]:
+                closed_ring.append(closed_ring[0])
+            if len(closed_ring) < 4:
+                continue
+            try:
+                ring_polygon = shape({"type": "Polygon", "coordinates": [closed_ring]})
+            except Exception:
+                continue
+            if ring_polygon.is_empty or ring_polygon.area == 0:
+                continue
+            closed_rings.append(closed_ring)
+            ring_polygons.append(ring_polygon)
+
+        if not closed_rings:
+            return None
+
+        # ESRI stores exterior and interior rings in one flat list. Build a
+        # containment tree instead of treating every ring after the first as a
+        # hole; that preserves disjoint exterior parts as a MultiPolygon.
+        parents: List[Optional[int]] = []
+        for index, polygon in enumerate(ring_polygons):
+            point = polygon.representative_point()
+            containers = [
+                candidate_index
+                for candidate_index, candidate in enumerate(ring_polygons)
+                if candidate_index != index and candidate.area > polygon.area and candidate.contains(point)
+            ]
+            parents.append(
+                min(containers, key=lambda candidate_index: ring_polygons[candidate_index].area, default=None)
+            )
+
+        depths: List[int] = []
+        for index in range(len(closed_rings)):
+            depth = 0
+            parent = parents[index]
+            visited = {index}
+            while parent is not None and parent not in visited:
+                visited.add(parent)
+                depth += 1
+                parent = parents[parent]
+            depths.append(depth)
+
+        polygons = []
+        for index, ring in enumerate(closed_rings):
+            if depths[index] % 2:
+                continue
+            holes = [
+                closed_rings[hole_index]
+                for hole_index, parent in enumerate(parents)
+                if parent == index and depths[hole_index] % 2 == 1
+            ]
+            polygons.append([ring, *holes])
+
+        if not polygons:
+            return None
+        if len(polygons) == 1:
+            return {"type": "Polygon", "coordinates": polygons[0]}
+        return {"type": "MultiPolygon", "coordinates": polygons}
 
     elif geometry_type == "esriGeometryPolyline":
         paths = esri_geometry.get("paths", [])
@@ -379,89 +472,6 @@ def esri_to_geojson_geometry(esri_geometry: Dict, geometry_type: str) -> Optiona
         return {"type": "MultiLineString", "coordinates": paths}
 
     return None
-
-
-def filter_features_by_buffer(features: List[Dict], buffer_geometry: Dict) -> List[Dict]:
-    """
-    Filter GeoJSON features to only those intersecting the buffer geometry.
-
-    Used to remove features returned by bounding box queries that don't
-    actually intersect the circular buffer ROI.
-
-    Args:
-        features: List of GeoJSON features
-        buffer_geometry: ESRI JSON polygon geometry (ROI buffer)
-
-    Returns:
-        Filtered list of features that intersect the buffer
-    """
-    if not features or not buffer_geometry:
-        return features
-
-    try:
-        buffer_geojson = esri_to_geojson_geometry(buffer_geometry, "esriGeometryPolygon")
-        buffer_shape = shape(buffer_geojson)
-
-        filtered = []
-        for feature in features:
-            try:
-                feature_shape = shape(feature["geometry"])
-                if feature_shape.intersects(buffer_shape):
-                    filtered.append(feature)
-            except Exception:
-                # Keep feature if intersection check fails
-                filtered.append(feature)
-
-        return filtered
-    except Exception as exc:
-        logger.warning("Could not filter features by buffer: %s", exc)
-        return features
-
-
-# =============================================================================
-# PAGINATION UTILITY
-# =============================================================================
-
-
-def fetch_with_pagination(url: str, params: dict, max_records: int = 4500, batch_size: int = 2000) -> List[Dict]:
-    """
-    Fetch features from ArcGIS REST API with pagination support.
-
-    Args:
-        url: The API endpoint URL
-        params: Base query parameters (should not include resultOffset)
-        max_records: Maximum total records to fetch
-        batch_size: Records per API request (default 2000, API limit)
-
-    Returns:
-        List of feature dictionaries from the API response
-    """
-    all_features = []
-    offset = 0
-
-    while len(all_features) < max_records:
-        batch_params = params.copy()
-        batch_params["resultRecordCount"] = min(batch_size, max_records - len(all_features))
-        batch_params["resultOffset"] = offset
-
-        try:
-            result = _post_arcgis_json(url, batch_params, timeout=30)
-
-            features = result.get("features", [])
-            if not features:
-                break
-
-            all_features.extend(features)
-
-            if len(features) < batch_params["resultRecordCount"]:
-                break
-
-            offset += len(features)
-
-        except Exception as exc:
-            raise RuntimeError(f"Pagination request failed at offset {offset}: {exc}") from exc
-
-    return all_features
 
 
 # =============================================================================
@@ -527,6 +537,7 @@ def get_tribal_lands_geojson(buffer_geometry: Dict) -> Dict:
     """
     features = []
     warnings = []
+    query_results = []
     successful_layers = 0
 
     for layer_id, layer_type in TRIBAL_LAYERS.items():
@@ -544,10 +555,11 @@ def get_tribal_lands_geojson(buffer_geometry: Dict) -> Dict:
         }
 
         try:
-            result = _post_arcgis_json(url, params, timeout=15)
+            query_result = _query_arcgis_features(url, params, timeout=15)
+            query_results.append(query_result)
             successful_layers += 1
 
-            for feature in result.get("features", []):
+            for feature in query_result.features:
                 attrs = feature.get("attributes", {})
                 geom = feature.get("geometry")
 
@@ -582,12 +594,7 @@ def get_tribal_lands_geojson(buffer_geometry: Dict) -> Dict:
             "No Census TIGERweb tribal geography layers were available; results are unavailable, not a no-hit."
         )
 
-    return {
-        "type": "FeatureCollection",
-        "features": features,
-        "status": "partial" if warnings else ("ok" if features else "empty"),
-        "warnings": warnings,
-    }
+    return _feature_collection(features, *query_results, warnings=warnings)
 
 
 # =============================================================================
@@ -789,10 +796,10 @@ def get_counties_geojson(
         "f": "json",
     }
 
-    result = _post_arcgis_json(url, params, timeout=30)
+    query_result = _query_arcgis_features(url, params, timeout=30)
 
     features = []
-    for feature in result.get("features", []):
+    for feature in query_result.features:
         attrs = feature.get("attributes", {})
         geom = feature.get("geometry")
 
@@ -825,12 +832,7 @@ def get_counties_geojson(
             logger.info("Enriching %s counties with GBIF species data", len(features))
             warnings.extend(_enrich_counties_with_species(features))
 
-    return {
-        "type": "FeatureCollection",
-        "features": features,
-        "status": "partial" if warnings else ("ok" if features else "empty"),
-        "warnings": warnings,
-    }
+    return _feature_collection(features, query_result, warnings=warnings)
 
 
 # =============================================================================
@@ -860,15 +862,12 @@ def get_critical_habitat_geojson(
         "https://services.arcgis.com/QVENGdaPbd4LUkLV/arcgis/rest/services/USFWS_Critical_Habitat/FeatureServer"
     )
 
-    degree_offset = radius_miles / 69.0
-    bbox = (
-        f"{longitude - degree_offset},{latitude - degree_offset},{longitude + degree_offset},{latitude + degree_offset}"
-    )
+    query_geometry = buffer_geometry or ArcGISService.create_roi_buffer(latitude, longitude, radius_miles)
 
     url = f"{crithab_url}/0/query"
     params = {
-        "geometry": bbox,
-        "geometryType": "esriGeometryEnvelope",
+        "geometry": json.dumps(query_geometry),
+        "geometryType": "esriGeometryPolygon",
         "inSR": 4326,
         "spatialRel": "esriSpatialRelIntersects",
         "returnGeometry": True,
@@ -876,14 +875,13 @@ def get_critical_habitat_geojson(
         "maxAllowableOffset": DEFAULT_OUTPUT_OFFSET_DEG,
         "outFields": "COMNAME,SCINAME,STATUS",
         "f": "json",
-        "resultRecordCount": 500,
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -902,14 +900,7 @@ def get_critical_habitat_geojson(
                     }
                 )
 
-        if buffer_geometry:
-            original_count = len(features)
-            features = filter_features_by_buffer(features, buffer_geometry)
-            filtered = original_count - len(features)
-            if filtered > 0:
-                logger.info("Filtered %s critical habitat features outside the circular ROI", filtered)
-
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USFWS critical habitat request failed: {exc}")
@@ -932,20 +923,10 @@ def get_wildlife_refuges_geojson(buffer_geometry: Dict) -> Dict:
     """
     nwrs_url = "https://services.arcgis.com/QVENGdaPbd4LUkLV/arcgis/rest/services/National_Wildlife_Refuge_System_Boundaries/FeatureServer"
 
-    # Extract extent from buffer polygon
-    extent = ArcGISService.get_extent_from_geometry(buffer_geometry)
-    envelope_geometry = {
-        "xmin": extent["xmin"],
-        "ymin": extent["ymin"],
-        "xmax": extent["xmax"],
-        "ymax": extent["ymax"],
-        "spatialReference": {"wkid": 4326},
-    }
-
     url = f"{nwrs_url}/0/query"
     params = {
-        "geometry": json.dumps(envelope_geometry),
-        "geometryType": "esriGeometryEnvelope",
+        "geometry": json.dumps(buffer_geometry),
+        "geometryType": "esriGeometryPolygon",
         "inSR": 4326,
         "spatialRel": "esriSpatialRelIntersects",
         "returnGeometry": True,
@@ -953,14 +934,13 @@ def get_wildlife_refuges_geojson(buffer_geometry: Dict) -> Dict:
         "maxAllowableOffset": DEFAULT_OUTPUT_OFFSET_DEG,
         "outFields": "ORGNAME,RSL_TYPE,FWSREGION",
         "f": "json",
-        "resultRecordCount": 500,
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=60)
+        query_result = _query_arcgis_features(url, params, timeout=60)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -979,7 +959,7 @@ def get_wildlife_refuges_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USFWS refuge boundary request failed: {exc}")
@@ -1017,12 +997,12 @@ def get_usace_districts_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
         seen_districts = set()
 
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1055,7 +1035,7 @@ def get_usace_districts_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USACE regulatory district request failed: {exc}")
@@ -1088,12 +1068,12 @@ def get_wetland_regions_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
         seen_regions = set()
 
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1118,7 +1098,7 @@ def get_wetland_regions_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USACE wetland region request failed: {exc}")
@@ -1153,12 +1133,12 @@ def get_wetland_subregions_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
         seen_subregions = set()
 
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1187,7 +1167,7 @@ def get_wetland_subregions_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USACE wetland subregion request failed: {exc}")
@@ -1203,6 +1183,7 @@ def _get_nhd_layer_geojson(
     latitude: float,
     longitude: float,
     radius_miles: float,
+    buffer_geometry: Optional[Dict] = None,
 ) -> Dict:
     """
     Generic function to fetch any NHD layer as GeoJSON.
@@ -1220,20 +1201,13 @@ def _get_nhd_layer_geojson(
     if not config:
         return _failed_feature_collection(f"Unknown NHD layer key: {layer_key}")
 
-    degree_offset = radius_miles / 69.0
-    envelope_geometry = {
-        "xmin": longitude - degree_offset,
-        "ymin": latitude - degree_offset,
-        "xmax": longitude + degree_offset,
-        "ymax": latitude + degree_offset,
-        "spatialReference": {"wkid": 4326},
-    }
+    query_geometry = buffer_geometry or ArcGISService.create_roi_buffer(latitude, longitude, radius_miles)
 
     url = f"{NHD_BASE_URL}/{config['layer_id']}/query"
     params = {
         "where": config["where_clause"],
-        "geometry": json.dumps(envelope_geometry),
-        "geometryType": "esriGeometryEnvelope",
+        "geometry": json.dumps(query_geometry),
+        "geometryType": "esriGeometryPolygon",
         "inSR": 4326,
         "spatialRel": "esriSpatialRelIntersects",
         "returnGeometry": True,
@@ -1244,15 +1218,10 @@ def _get_nhd_layer_geojson(
     }
 
     try:
-        api_features = fetch_with_pagination(url, params, max_records=10000)
-
-        pagination_warning = None
-        if len(api_features) >= 9999:
-            pagination_warning = f"USGS NHD {layer_key} reached the 10,000-feature safety cap; results may be partial."
-            logger.warning(pagination_warning)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=10000)
 
         features = []
-        for feature in api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1316,51 +1285,58 @@ def _get_nhd_layer_geojson(
                 }
             )
 
-        return {
-            "type": "FeatureCollection",
-            "features": features,
-            "status": "partial" if pagination_warning else ("ok" if features else "empty"),
-            "warnings": [pagination_warning] if pagination_warning else [],
-        }
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USGS NHD {layer_key} request failed: {exc}")
 
 
 # Public wrappers for NHD layers (for backward compatibility and clarity)
-def get_nhd_lakes_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_lakes_geojson(lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None) -> Dict:
     """Get perennial lakes and ponds from NHD."""
-    return _get_nhd_layer_geojson("nhd_lakes", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_lakes", lat, lon, radius_miles, buffer_geometry)
 
 
-def get_nhd_reservoirs_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_reservoirs_geojson(
+    lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None
+) -> Dict:
     """Get reservoirs from NHD."""
-    return _get_nhd_layer_geojson("nhd_reservoirs", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_reservoirs", lat, lon, radius_miles, buffer_geometry)
 
 
-def get_nhd_estuaries_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_estuaries_geojson(
+    lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None
+) -> Dict:
     """Get estuaries from NHD."""
-    return _get_nhd_layer_geojson("nhd_estuaries", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_estuaries", lat, lon, radius_miles, buffer_geometry)
 
 
-def get_nhd_ice_masses_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_ice_masses_geojson(
+    lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None
+) -> Dict:
     """Get ice masses/glaciers from NHD."""
-    return _get_nhd_layer_geojson("nhd_ice_masses", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_ice_masses", lat, lon, radius_miles, buffer_geometry)
 
 
-def get_nhd_perennial_streams_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_perennial_streams_geojson(
+    lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None
+) -> Dict:
     """Get perennial stream centerlines from NHD."""
-    return _get_nhd_layer_geojson("nhd_perennial_streams", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_perennial_streams", lat, lon, radius_miles, buffer_geometry)
 
 
-def get_nhd_stream_areas_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_stream_areas_geojson(
+    lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None
+) -> Dict:
     """Get perennial river/stream area polygons from NHD."""
-    return _get_nhd_layer_geojson("nhd_stream_areas", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_stream_areas", lat, lon, radius_miles, buffer_geometry)
 
 
-def get_nhd_infrastructure_geojson(lat: float, lon: float, radius_miles: float) -> Dict:
+def get_nhd_infrastructure_geojson(
+    lat: float, lon: float, radius_miles: float, buffer_geometry: Optional[Dict] = None
+) -> Dict:
     """Get NHD infrastructure points (dams, springs, gages, wells, intakes)."""
-    return _get_nhd_layer_geojson("nhd_infrastructure", lat, lon, radius_miles)
+    return _get_nhd_layer_geojson("nhd_infrastructure", lat, lon, radius_miles, buffer_geometry)
 
 
 # =============================================================================
@@ -1399,10 +1375,10 @@ def get_blm_managed_lands_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=4500)
 
         features = []
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1433,7 +1409,7 @@ def get_blm_managed_lands_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"PAD-US BLM managed lands request failed: {exc}")
@@ -1469,10 +1445,10 @@ def get_federal_lands_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=4500)
 
         features = []
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1503,7 +1479,7 @@ def get_federal_lands_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"PAD-US federal lands request failed: {exc}")
@@ -1535,12 +1511,12 @@ def get_blm_land_use_plans_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
         seen_plans = set()
 
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1569,7 +1545,7 @@ def get_blm_land_use_plans_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"BLM land-use-plan request failed: {exc}")
@@ -1601,12 +1577,12 @@ def get_blm_plans_in_progress_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
         seen_plans = set()
 
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1634,7 +1610,7 @@ def get_blm_plans_in_progress_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"BLM plans-in-progress request failed: {exc}")
@@ -1666,12 +1642,12 @@ def get_blm_wilderness_study_areas_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=4500)
 
         features = []
         seen_wsas = set()
 
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1685,7 +1661,11 @@ def get_blm_wilderness_study_areas_geojson(buffer_geometry: Dict) -> Dict:
 
                 suitability_raw = attrs.get("WSA_SUITABILITY")
                 suitability = (
-                    "Suitable" if suitability_raw == 1 else "Nonsuitable" if suitability_raw == 0 else "Unknown"
+                    "Suitable"
+                    if suitability_raw in (1, "1")
+                    else "Nonsuitable"
+                    if suitability_raw in (0, "0")
+                    else "Unknown"
                 )
 
                 features.append(
@@ -1706,7 +1686,7 @@ def get_blm_wilderness_study_areas_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"BLM wilderness study area request failed: {exc}")
@@ -1738,12 +1718,12 @@ def get_blm_national_monuments_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
         seen_monuments = set()
 
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1770,7 +1750,7 @@ def get_blm_national_monuments_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"BLM monument and conservation area request failed: {exc}")
@@ -1805,10 +1785,10 @@ def get_blm_rights_of_way_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=4500)
 
         features = []
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1827,7 +1807,7 @@ def get_blm_rights_of_way_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"BLM right-of-way layer request failed: {exc}")
@@ -1864,17 +1844,17 @@ def get_grsg_habitat_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=60)
+        query_result = _query_arcgis_features(url, params, timeout=60)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
             if geom:
                 geojson_geom = esri_to_geojson_geometry(geom, "esriGeometryPolygon")
-                habitat_type = attrs.get("Habitat_Type", "Unknown")
-                eis_hab = attrs.get("EIS_HAB", "")
+                habitat_type = str(attrs.get("Habitat_Type") or "Unknown")
+                eis_hab = str(attrs.get("EIS_HAB") or "")
                 state = eis_hab.split("_")[0] if "_" in eis_hab else ""
                 acres = attrs.get("SUM_ACRES", 0)
 
@@ -1892,7 +1872,7 @@ def get_grsg_habitat_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"Greater sage-grouse habitat request failed: {exc}")
@@ -1927,10 +1907,10 @@ def get_sagebrush_focal_areas_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=60)
+        query_result = _query_arcgis_features(url, params, timeout=60)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -1949,7 +1929,7 @@ def get_sagebrush_focal_areas_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"Sagebrush focal area request failed: {exc}")
@@ -1981,10 +1961,10 @@ def get_wild_horse_hma_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2006,7 +1986,7 @@ def get_wild_horse_hma_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"Wild horse and burro management area request failed: {exc}")
@@ -2047,10 +2027,10 @@ def get_national_trails_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=60)
+        query_result = _query_arcgis_features(url, params, timeout=60)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2069,7 +2049,7 @@ def get_national_trails_geojson(buffer_geometry: Dict) -> Dict:
                         }
                     )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"National trail layer request failed: {exc}")
@@ -2101,10 +2081,10 @@ def get_fire_perimeters_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=2000)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=2000)
 
         features = []
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2127,7 +2107,7 @@ def get_fire_perimeters_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"Historical fire perimeter request failed: {exc}")
@@ -2162,10 +2142,10 @@ def get_lwcf_lands_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=30)
+        query_result = _query_arcgis_features(url, params, timeout=30)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2189,7 +2169,7 @@ def get_lwcf_lands_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"LWCF parcel request failed: {exc}")
@@ -2224,10 +2204,10 @@ def get_eis_boundaries_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=60)
+        query_result = _query_arcgis_features(url, params, timeout=60)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2246,7 +2226,7 @@ def get_eis_boundaries_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"EIS planning boundary request failed: {exc}")
@@ -2286,10 +2266,10 @@ def get_usfs_forests_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=4500)
 
         features = []
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2317,7 +2297,7 @@ def get_usfs_forests_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USFS National Forest boundary request failed: {exc}")
@@ -2352,12 +2332,12 @@ def get_usfs_roadless_areas_geojson(buffer_geometry: Dict) -> Dict:
     }
 
     try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
+        query_result = _query_arcgis_features(url, params, timeout=30, max_features=4500)
 
         features = []
         seen_areas = set()
 
-        for feature in all_api_features:
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2386,7 +2366,7 @@ def get_usfs_roadless_areas_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"USFS roadless area request failed: {exc}")
@@ -2410,19 +2390,10 @@ def get_nps_boundaries_geojson(buffer_geometry: Dict) -> Dict:
     Returns:
         GeoJSON FeatureCollection with NPS unit boundary polygons
     """
-    extent = ArcGISService.get_extent_from_geometry(buffer_geometry)
-    envelope_geometry = {
-        "xmin": extent["xmin"],
-        "ymin": extent["ymin"],
-        "xmax": extent["xmax"],
-        "ymax": extent["ymax"],
-        "spatialReference": {"wkid": 4326},
-    }
-
     url = f"{NPS_BOUNDARIES_URL}/{NPS_BOUNDARIES_LAYER_ID}/query"
     params = {
-        "geometry": json.dumps(envelope_geometry),
-        "geometryType": "esriGeometryEnvelope",
+        "geometry": json.dumps(buffer_geometry),
+        "geometryType": "esriGeometryPolygon",
         "inSR": 4326,
         "spatialRel": "esriSpatialRelIntersects",
         "returnGeometry": True,
@@ -2430,14 +2401,13 @@ def get_nps_boundaries_geojson(buffer_geometry: Dict) -> Dict:
         "maxAllowableOffset": DEFAULT_OUTPUT_OFFSET_DEG,
         "outFields": "UNIT_NAME,UNIT_CODE,UNIT_TYPE,STATE,REGION",
         "f": "json",
-        "resultRecordCount": 500,
     }
 
     try:
-        result = _post_arcgis_json(url, params, timeout=60)
+        query_result = _query_arcgis_features(url, params, timeout=60)
 
         features = []
-        for feature in result.get("features", []):
+        for feature in query_result.features:
             attrs = feature.get("attributes", {})
             geom = feature.get("geometry")
 
@@ -2458,92 +2428,10 @@ def get_nps_boundaries_geojson(buffer_geometry: Dict) -> Dict:
                     }
                 )
 
-        return {"type": "FeatureCollection", "features": features}
+        return _feature_collection(features, query_result)
 
     except Exception as exc:
         return _failed_feature_collection(f"NPS unit boundary request failed: {exc}")
-
-
-# =============================================================================
-# FEMA LAYERS
-# =============================================================================
-
-
-def get_fema_flood_zones_geojson(buffer_geometry: Dict) -> Dict:
-    """
-    Get FEMA flood hazard zones as GeoJSON.
-
-    Queries the NFHL reduced set for flood zone designations including
-    Special Flood Hazard Areas (100-year floodplain) for E.O. 11988
-    floodplain compliance.
-
-    Args:
-        buffer_geometry: ESRI JSON polygon geometry (ROI buffer)
-
-    Returns:
-        GeoJSON FeatureCollection with flood zone polygons
-    """
-    simplified_geom = ArcGISService.simplify_polygon_geometry(buffer_geometry)
-
-    url = f"{FEMA_FLOOD_ZONES_URL}/{FEMA_FLOOD_ZONES_LAYER_ID}/query"
-    params = {
-        "geometry": json.dumps(simplified_geom),
-        "geometryType": "esriGeometryPolygon",
-        "inSR": 4326,
-        "spatialRel": "esriSpatialRelIntersects",
-        "returnGeometry": True,
-        "outSR": 4326,
-        "maxAllowableOffset": DEFAULT_OUTPUT_OFFSET_DEG,
-        "outFields": "FLD_ZONE,ZONE_SUBTY,SFHA_TF,STATIC_BFE,STUDY_TYP",
-        "f": "json",
-    }
-
-    try:
-        all_api_features = fetch_with_pagination(url, params, max_records=4500)
-
-        features = []
-        for feature in all_api_features:
-            attrs = feature.get("attributes", {})
-            geom = feature.get("geometry")
-
-            if geom:
-                geojson_geom = esri_to_geojson_geometry(geom, "esriGeometryPolygon")
-
-                fld_zone = attrs.get("FLD_ZONE", "Unknown")
-                zone_subtype = attrs.get("ZONE_SUBTY", "")
-                sfha_raw = attrs.get("SFHA_TF", "")
-                static_bfe = attrs.get("STATIC_BFE")
-                study_type = attrs.get("STUDY_TYP", "")
-
-                # Build descriptive name
-                if zone_subtype:
-                    name = f"Zone {fld_zone} - {zone_subtype}"
-                else:
-                    name = f"Zone {fld_zone}"
-
-                # Convert SFHA flag to readable value
-                sfha = "Yes" if sfha_raw == "T" else "No" if sfha_raw == "F" else ""
-
-                features.append(
-                    {
-                        "type": "Feature",
-                        "geometry": geojson_geom,
-                        "properties": {
-                            "name": name,
-                            "flood_zone": fld_zone,
-                            "zone_subtype": zone_subtype,
-                            "sfha": sfha,
-                            "base_flood_elevation": static_bfe,
-                            "study_type": study_type,
-                            "layer": "fema_flood_zones",
-                        },
-                    }
-                )
-
-        return {"type": "FeatureCollection", "features": features}
-
-    except Exception as exc:
-        return _failed_feature_collection(f"FEMA flood hazard layer request failed: {exc}")
 
 
 # =============================================================================
@@ -2596,18 +2484,21 @@ def collect_all_layers(
         "usace_districts": lambda: get_usace_districts_geojson(buffer_geometry),
         "wetland_regions": lambda: get_wetland_regions_geojson(buffer_geometry),
         "wetland_subregions": lambda: get_wetland_subregions_geojson(buffer_geometry),
-        "nhd_lakes": lambda: get_nhd_lakes_geojson(latitude, longitude, buffer_miles),
-        "nhd_reservoirs": lambda: get_nhd_reservoirs_geojson(latitude, longitude, buffer_miles),
-        "nhd_estuaries": lambda: get_nhd_estuaries_geojson(latitude, longitude, buffer_miles),
-        "nhd_ice_masses": lambda: get_nhd_ice_masses_geojson(latitude, longitude, buffer_miles),
-        "nhd_perennial_streams": lambda: get_nhd_perennial_streams_geojson(latitude, longitude, buffer_miles),
-        "nhd_stream_areas": lambda: get_nhd_stream_areas_geojson(latitude, longitude, buffer_miles),
-        "nhd_infrastructure": lambda: get_nhd_infrastructure_geojson(latitude, longitude, buffer_miles),
+        "nhd_lakes": lambda: get_nhd_lakes_geojson(latitude, longitude, buffer_miles, buffer_geometry),
+        "nhd_reservoirs": lambda: get_nhd_reservoirs_geojson(latitude, longitude, buffer_miles, buffer_geometry),
+        "nhd_estuaries": lambda: get_nhd_estuaries_geojson(latitude, longitude, buffer_miles, buffer_geometry),
+        "nhd_ice_masses": lambda: get_nhd_ice_masses_geojson(latitude, longitude, buffer_miles, buffer_geometry),
+        "nhd_perennial_streams": lambda: get_nhd_perennial_streams_geojson(
+            latitude, longitude, buffer_miles, buffer_geometry
+        ),
+        "nhd_stream_areas": lambda: get_nhd_stream_areas_geojson(latitude, longitude, buffer_miles, buffer_geometry),
+        "nhd_infrastructure": lambda: get_nhd_infrastructure_geojson(
+            latitude, longitude, buffer_miles, buffer_geometry
+        ),
         "federal_lands": lambda: get_federal_lands_geojson(buffer_geometry),
         "usfs_forests": lambda: get_usfs_forests_geojson(buffer_geometry),
         "usfs_roadless_areas": lambda: get_usfs_roadless_areas_geojson(buffer_geometry),
         "nps_boundaries": lambda: get_nps_boundaries_geojson(buffer_geometry),
-        "fema_flood_zones": lambda: get_fema_flood_zones_geojson(buffer_geometry),
         "blm_managed_lands": lambda: get_blm_managed_lands_geojson(buffer_geometry),
         "blm_land_use_plans": lambda: get_blm_land_use_plans_geojson(buffer_geometry),
         "blm_plans_in_progress": lambda: get_blm_plans_in_progress_geojson(buffer_geometry),

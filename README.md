@@ -31,14 +31,16 @@ toolkit. It gives AI agents structured access to federal environmental,
 regulatory, biological, cultural, socioeconomic, and jurisdictional data used
 in NEPA screening and permitting research.
 
-One install provides 19 independently deployable MCP servers and 46 tools. The
-[Map Composer MCP server](docs/map-composer.md) adds 32 live GIS overlays
-across eight federal data publishers. It queries their public GIS services at
-request time and composes selected results into an interactive map or a
-provenance-rich GeoJSON export.
+The current inventory includes 19 MCP servers, 46 MCP tools, and 32 GIS
+layers. Together, the tools and layers represent **78 environmental and
+regulatory research capabilities**. These capabilities draw on public data
+from 12 federal agencies, along with interagency and nonfederal sources.
 
-**Explore capabilities:** Browse the [MCP Tool Catalog](docs/mcp-tool-catalog.md)
-for the complete server and tool inventory.
+The [MCP Tool Catalog](docs/mcp-tool-catalog.md) provides the complete server
+and tool inventory. The [Map Composer MCP server](docs/map-composer.md) queries
+public GIS services from eight federal data publishers at request time. It can
+compose selected results into an interactive map or a provenance-rich GeoJSON
+export.
 
 > [!IMPORTANT]
 > NEPA MCP is a screening and research aid. It does not make legal or agency

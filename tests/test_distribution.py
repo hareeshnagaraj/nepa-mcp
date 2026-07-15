@@ -226,3 +226,32 @@ def test_aggregate_server_discovers_all_tools() -> None:
         "compose_environmental_map",
         "export_all_layers_geojson",
     } <= tool_names
+
+    layer_inventory = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from nepa_mcp.loader import load_server_module; "
+                'print(len(load_server_module("map_composer").LAYER_METADATA))'
+            ),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert layer_inventory.returncode == 0, layer_inventory.stderr
+    layer_count = int(layer_inventory.stdout.strip())
+    capability_count = len(tool_names) + layer_count
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
+    inventory = (
+        f"The current inventory includes {len(SERVER_SPECS)} MCP servers, "
+        f"{len(tool_names)} MCP tools, and {layer_count} GIS layers."
+    )
+    total = (
+        f"Together, the tools and layers represent **{capability_count} environmental "
+        "and regulatory research capabilities**."
+    )
+    assert inventory in readme
+    assert total in readme

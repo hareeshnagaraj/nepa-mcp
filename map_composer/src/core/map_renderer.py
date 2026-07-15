@@ -21,16 +21,20 @@ from shapely.geometry import mapping, shape
 logger = logging.getLogger(__name__)
 
 
-def _safe_link(value: Any, label: str) -> str:
+class _SafeHtml(str):
+    """Marker for renderer-generated HTML that has already been escaped."""
+
+
+def _safe_link(value: Any, label: str) -> _SafeHtml:
     """Render an HTTP(S) link while rejecting executable or malformed schemes."""
 
     url = str(value).strip()
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        return _html_escape(url)
+        return _SafeHtml(_html_escape(url))
     safe_url = _html_escape(url, quote=True)
     safe_label = _html_escape(label)
-    return f"<a href='{safe_url}' target='_blank' rel='noopener noreferrer'>{safe_label}</a>"
+    return _SafeHtml(f"<a href='{safe_url}' target='_blank' rel='noopener noreferrer'>{safe_label}</a>")
 
 
 # =============================================================================
@@ -257,19 +261,6 @@ LAYER_CONFIG = {
             ("GNIS ID", "gnis_id"),
         ],
     },
-    "fema_flood_zones": {
-        "name": "FEMA Flood Zones",
-        "description": "NFHL flood hazard areas for project-area context",
-        "color": "#1E90FF",  # Dodger blue
-        "popup_fields": [
-            ("Zone", "name"),
-            ("Flood Zone", "flood_zone"),
-            ("Zone Subtype", "zone_subtype"),
-            ("Special Flood Hazard Area", "sfha"),
-            ("Base Flood Elevation", "base_flood_elevation", lambda v: f"{v} ft" if v else None),
-            ("Study Type", "study_type"),
-        ],
-    },
     "blm_managed_lands": {
         "name": "BLM Managed Lands",
         "description": "BLM surface management boundaries (via PAD-US)",
@@ -433,7 +424,6 @@ LAYER_CONFIG = {
 # Layer rendering order (bottom to top)
 LAYER_ORDER = [
     "eis_boundaries",
-    "fema_flood_zones",
     "federal_lands",
     "usfs_forests",
     "blm_managed_lands",
@@ -493,8 +483,17 @@ def _get_field_value(properties: Dict, field_spec: Any, formatter: Callable = No
         # Multiple fields (e.g., lat, lon)
         values = [properties.get(f) for f in field_spec]
         if all(v is not None for v in values):
-            # Formatter output is trusted HTML; raw tuple stringification is not.
-            return formatter(*values) if formatter else _html_escape(str(values))
+            if not formatter:
+                return _html_escape(str(values))
+            try:
+                formatted = formatter(*values)
+            except (TypeError, ValueError):
+                return _html_escape(", ".join(str(value) for value in values))
+            if formatted is None:
+                return None
+            if isinstance(formatted, _SafeHtml):
+                return str(formatted)
+            return _html_escape(str(formatted))
         return None
 
     # Single field
@@ -503,8 +502,15 @@ def _get_field_value(properties: Dict, field_spec: Any, formatter: Callable = No
         return None
 
     if formatter:
-        # Formatters for fields like URLs emit HTML intentionally; trust them.
-        return formatter(value)
+        try:
+            formatted = formatter(value)
+        except (TypeError, ValueError):
+            return _html_escape(str(value))
+        if formatted is None:
+            return None
+        if isinstance(formatted, _SafeHtml):
+            return str(formatted)
+        return _html_escape(str(formatted))
     # Untrusted upstream value - HTML-escape before it reaches the popup template.
     return _html_escape(str(value))
 
@@ -685,14 +691,20 @@ def simplify_geojson(geojson_data: Dict, tolerance: float = 0.001) -> Dict:
     simplified_features = []
 
     for feature in simplified_data["features"]:
+        geometry = feature.get("geometry") if isinstance(feature, dict) else None
+        if not isinstance(geometry, dict) or not geometry.get("type") or not geometry.get("coordinates"):
+            logger.warning("Skipping map feature with empty or malformed geometry")
+            continue
         try:
-            geom = shape(feature["geometry"])
+            geom = shape(geometry)
             simplified_geom = geom.simplify(tolerance, preserve_topology=True)
+            if simplified_geom.is_empty:
+                logger.warning("Skipping map feature whose simplified geometry is empty")
+                continue
             feature["geometry"] = mapping(simplified_geom)
             simplified_features.append(feature)
         except Exception as exc:
             logger.warning("Could not simplify map feature: %s", exc)
-            simplified_features.append(feature)
 
     simplified_data["features"] = simplified_features
     return simplified_data
@@ -749,6 +761,9 @@ def add_geojson_layer(
         return
 
     geojson_data = simplify_geojson(geojson_data, tolerance=0.001)
+    if not geojson_data.get("features"):
+        logger.info("No valid geometries in %s; skipping map layer", layer_name)
+        return
 
     config = LAYER_CONFIG.get(layer_type, {})
     color = config.get("color", "#888888")
@@ -768,11 +783,11 @@ def add_geojson_layer(
         return {"color": color, "weight": 2, "opacity": 0.8}
 
     # Separate point and geometry features
-    point_features = [f for f in geojson_data["features"] if f["geometry"]["type"] == "Point"]
+    point_features = [f for f in geojson_data["features"] if f.get("geometry", {}).get("type") == "Point"]
     geom_features = [
         f
         for f in geojson_data["features"]
-        if f["geometry"]["type"] in ("Polygon", "MultiPolygon", "LineString", "MultiLineString")
+        if f.get("geometry", {}).get("type") in ("Polygon", "MultiPolygon", "LineString", "MultiLineString")
     ]
 
     # Add point markers

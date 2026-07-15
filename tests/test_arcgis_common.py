@@ -192,3 +192,69 @@ def test_query_features_exact_safety_cap_is_complete_without_more_records(monkey
     assert len(result.features) == 2
     assert result.truncated is False
     assert result.warnings == []
+
+
+def test_query_features_honors_exceeded_transfer_limit_on_a_short_page(monkeypatch) -> None:
+    ArcGISService = _arcgis_service()
+    calls: list[dict[str, Any]] = []
+    payloads = iter(
+        [
+            {"features": [{"attributes": {"id": 1}}], "exceededTransferLimit": True},
+            {"features": [{"attributes": {"id": 2}}], "exceededTransferLimit": False},
+        ]
+    )
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return next(payloads)
+
+    def post(_url: str, *, data: dict[str, Any], **_kwargs):
+        calls.append(data)
+        return _Response()
+
+    monkeypatch.setattr(requests, "post", post)
+
+    result = ArcGISService.query_features(
+        "https://example.test/FeatureServer",
+        0,
+        {"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]},
+        out_fields="id",
+        page_size=2,
+        max_features=10,
+    )
+
+    assert [feature["attributes"]["id"] for feature in result.features] == [1, 2]
+    assert [call["resultOffset"] for call in calls] == [0, 1]
+
+
+def test_query_features_marks_an_explicit_safety_cap_partial(monkeypatch) -> None:
+    ArcGISService = _arcgis_service()
+
+    class _CappedResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "features": [{"attributes": {"id": 1}}, {"attributes": {"id": 2}}],
+                "exceededTransferLimit": True,
+            }
+
+    monkeypatch.setattr(requests, "post", lambda *_args, **_kwargs: _CappedResponse())
+
+    result = ArcGISService.query_features(
+        "https://example.test/FeatureServer",
+        0,
+        {"rings": [[[0, 0], [0, 1], [1, 0], [0, 0]]]},
+        out_fields="id",
+        page_size=2,
+        max_features=2,
+        service_name="Example layer",
+    )
+
+    assert result.truncated is True
+    assert len(result.features) == 2
+    assert result.warnings == ["Example layer reached the 2 feature safety cap; results are partial."]
