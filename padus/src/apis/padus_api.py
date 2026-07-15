@@ -47,7 +47,10 @@ def get_padus_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> Dict
     )
 
     records = []
-    for feature in result.features:
+    # `or []` guards against a query result whose features are null rather than
+    # an empty list, so a null-features response degrades gracefully instead of
+    # raising TypeError.
+    for feature in (result.features or []):
         attrs = feature.get("attributes", {})
 
         try:
