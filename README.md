@@ -31,12 +31,16 @@ toolkit. It gives AI agents structured access to federal environmental,
 regulatory, biological, cultural, socioeconomic, and jurisdictional data used
 in NEPA screening and permitting research.
 
-The repository provides 18 independent domain servers, an installable
-`nepa-mcp` command, client-configuration helpers, and an optional Codex plugin.
-Each server exposes structured responses directly to the connected MCP client.
+The current inventory includes 19 MCP servers, 46 MCP tools, and 32 GIS
+layers. Together, the tools and layers represent **78 environmental and
+regulatory research capabilities**. These capabilities draw on public data
+from 12 federal agencies, along with interagency and nonfederal sources.
 
-**Explore capabilities:** Browse the [MCP Tool Catalog](docs/mcp-tool-catalog.md)
-for all 18 servers and 43 tools at a glance.
+The [MCP Tool Catalog](docs/mcp-tool-catalog.md) provides the complete server
+and tool inventory. The [Map Composer MCP server](docs/map-composer.md) queries
+public GIS services from eight federal data publishers at request time. It can
+compose selected results into an interactive map or a provenance-rich GeoJSON
+export.
 
 > [!IMPORTANT]
 > NEPA MCP is a screening and research aid. It does not make legal or agency
@@ -93,7 +97,7 @@ pipx install --force .
 
 The repository includes examples for Claude Code (`.mcp.json`), VS Code
 (`.vscode/mcp.json`), and Codex (`config.template.toml`). Each example registers
-the 18 domains as separate MCP servers.
+the 19 capabilities as separate MCP servers.
 
 The CLI can merge those entries into an existing client configuration:
 
@@ -110,7 +114,7 @@ Unrelated MCP entries are preserved, and an existing file receives a one-time
 ## Codex Plugin
 
 The repository contains a local Codex marketplace and a `nepa-mcp` plugin. The
-plugin registers all 18 domain servers and includes the `nepa-screening` skill.
+plugin registers all 19 servers and includes the `nepa-screening` skill.
 After installing the Python runtime, run:
 
 ```bash
@@ -120,6 +124,37 @@ codex plugin add nepa-mcp@nepa-mcp-local
 
 Start a new Codex task after installing or updating the plugin so the new MCP
 tools and skill are loaded.
+
+## Map Composer
+
+`map_composer` turns project-area data into an interactive HTML map or a
+combined GeoJSON file for QGIS, ArcGIS, and other geospatial workflows. It
+provides 32 selectable overlays assembled at request time from Census, USFWS,
+USACE, USGS, BLM, USFS, NPS, and NIFC public GIS services.
+
+The result is intentionally interactive rather than a fixed stack: start with
+one of five profiles, then toggle returned layers to preserve visual clarity
+for the question at hand. Every map reports requested, rendered, empty,
+partial, and failed layer counts so source coverage remains visible.
+
+<p align="center">
+  <a href="docs/map-composer.md">
+    <img src="docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 20-mile Chesapeake Bay watershed project area with 12 overlays visible" width="900">
+  </a>
+</p>
+
+<p align="center">
+  <em>Chesapeake Bay watershed, 20-mile project area: 12 overlays shown from 16 returned locally in a 32-layer request, with no failed sources. The generated map keeps every returned layer independently toggleable.</em>
+</p>
+
+The server exposes three tools:
+
+- `compose_environmental_map`
+- `export_all_layers_geojson`
+- `list_available_layers`
+
+See the [Map Composer guide](docs/map-composer.md) for profile membership, the
+complete 32-layer catalog, output behavior, provenance, and artifact storage.
 
 ## Credentials
 
@@ -159,6 +194,7 @@ Credentials are not copied into MCP client or plugin configuration, and
 | `gbif` | [Global Biodiversity Information Facility](https://www.gbif.org/) and contributing dataset publishers; [U.S. Census Bureau](https://www.census.gov/) for county boundaries | Occurrence records by ROI or county; record-level publisher and license vary |
 | `gis` | [Esri](https://www.esri.com/) | ArcGIS Geometry Service ROI buffers with locally derived GeoJSON and area estimates |
 | `ipac` | [U.S. Fish and Wildlife Service](https://www.fws.gov/) / [Department of the Interior](https://www.doi.gov/) | IPaC species, critical habitat, migratory birds, wetlands, refuges, and related resources |
+| `map_composer` | Census, USFWS, USACE, USGS, BLM, USFS, NPS, and NIFC public GIS services | Interactive project-area maps and provenance-rich GeoJSON exports across 32 selectable layers |
 | `nepa_assist` | [U.S. Environmental Protection Agency](https://www.epa.gov/) | NEPAssist aggregated environmental-screening indicators |
 | `noaa` | [NOAA Fisheries, West Coast Region](https://www.fisheries.noaa.gov/about/west-coast-region) | ESA critical-habitat designations |
 | `nrhp` | [National Park Service](https://www.nps.gov/) / [Department of the Interior](https://www.doi.gov/) | National Register-listed property locations |
@@ -172,34 +208,9 @@ Credentials are not copied into MCP client or plugin configuration, and
 > to construct ROI buffers. Esri is a supporting geometry-service provider,
 > not the publisher of the agency datasets identified above.
 
-## Geographic Inputs and Data Behavior
-
-- Geographic screening tools currently accept a WGS84 latitude, longitude,
-  and point-buffer distance. Project-polygon input is not yet supported.
-- Tool schemas constrain point buffers to 0.1–100 miles. The default is 25
-  miles unless a tool documents another value.
-- `esa_ranges` combines both complementary NOAA `Ranges_dice` layers. Layer 1
-  covers Washington, Idaho, Oregon, and transboundary fish ranges; Layer 2
-  covers California and southern Oregon. Diced watershed geometries are unioned
-  by range record and clipped to the requested point-buffer ROI; source
-  watershed area is retained separately.
-- `efh` uses the public services behind NOAA's EFH Mapper for HAPC, general EFH,
-  Pacific salmon watersheds, and species or management-unit screening. Species
-  or management-unit polygon acreage is clipped to the point-buffer ROI while
-  HAPC and salmon-watershed presence semantics remain unchanged.
-- `noaa` consolidates diced critical-habitat fragments by listed entity while
-  preserving distinct named habitat units. Polygon area is unioned across
-  fragments and clipped to the ROI; upstream whole-feature area is retained as
-  provenance rather than presented as affected area.
-- `pcsrf` applies the same provenance contract to its generalized critical-
-  habitat polygons and Atlantic salmon EFH/HAPC polygons. Critical-habitat line
-  length retains its legacy source-coordinate estimate and is explicitly marked
-  as not ROI-clipped; recovery projects and species-range tools retain their
-  existing behavior.
-- Empty NOAA West Coast and PCSRF-project results outside their expected
-  service geography include a coverage warning.
-- Upstream request failures and partial-layer failures are returned as
-  warnings; they are not presented as evidence that a resource is absent.
+See [Geographic Inputs and Data Behavior](docs/geographic-inputs-and-data-behavior.md)
+for ROI constraints, area and clipping semantics, coverage warnings, and
+partial-source behavior across geographic servers.
 
 ## Development
 
@@ -257,9 +268,11 @@ and [U.S. Government Publishing Office](https://www.gpo.gov/)
 · [Global Biodiversity Information Facility](https://www.gbif.org/)
 and contributing dataset publishers
 · [National Park Service](https://www.nps.gov/)
+· [National Interagency Fire Center](https://www.nifc.gov/)
 · [NOAA Fisheries](https://www.fisheries.noaa.gov/)
 · [U.S. Army Corps of Engineers](https://www.usace.army.mil/)
 · [U.S. Fish and Wildlife Service](https://www.fws.gov/)
+· [USDA Forest Service](https://www.fs.usda.gov/)
 · [U.S. Geological Survey](https://www.usgs.gov/)
 
 > [!NOTE]

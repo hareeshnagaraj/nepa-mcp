@@ -29,6 +29,7 @@ EXPECTED_SERVERS = {
     "gbif",
     "gis",
     "ipac",
+    "map_composer",
     "nepa_assist",
     "noaa",
     "nrhp",
@@ -216,10 +217,41 @@ async def _aggregate_tool_names() -> set[str]:
 
 def test_aggregate_server_discovers_all_tools() -> None:
     tool_names = asyncio.run(_aggregate_tool_names())
-    assert len(tool_names) == 43
+    assert len(tool_names) == 46
     assert {
         "summarize_roi_buffer",
         "get_ipac_resources_in_roi",
         "cfr_resolve_citation",
         "get_nrhp_properties_in_roi",
+        "compose_environmental_map",
+        "export_all_layers_geojson",
     } <= tool_names
+
+    layer_inventory = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from nepa_mcp.loader import load_server_module; "
+                'print(len(load_server_module("map_composer").LAYER_METADATA))'
+            ),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert layer_inventory.returncode == 0, layer_inventory.stderr
+    layer_count = int(layer_inventory.stdout.strip())
+    capability_count = len(tool_names) + layer_count
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
+    inventory = (
+        f"The current inventory includes {len(SERVER_SPECS)} MCP servers, "
+        f"{len(tool_names)} MCP tools, and {layer_count} GIS layers."
+    )
+    total = (
+        f"Together, the tools and layers represent **{capability_count} environmental "
+        "and regulatory research capabilities**."
+    )
+    assert inventory in readme
+    assert total in readme

@@ -29,6 +29,22 @@ Before location-scoped calls, confirm or derive latitude, longitude, and buffer 
 - Use `nrhp` for National Register of Historic Places properties.
 - Use `cfr` for current eCFR text, regulatory history, Federal Register citations, and executive orders.
 
+## Create map artifacts
+
+Use `map_composer` after establishing the project area when an interactive
+visual or GIS-ready export will help communicate the screening context.
+
+- Use the default `full` profile for general-purpose maps, comprehensive
+  screening, demonstrations, and publication-oriented visuals.
+- Use `screening` when the user prefers a faster balanced overview, and use
+  `biological`, `water`, or `lands` for explicitly focused maps.
+- Use explicit layer IDs when only selected findings need to be visualized.
+- Treat failed or partial map layers as unavailable data, not as no-hit findings.
+- Report the map's requested, rendered, empty, partial, and failed layer counts;
+  do not describe catalog size as though every layer intersected the ROI.
+- Generated HTML contains the selected vector features but needs network access
+  for basemap tiles and standard web-map assets.
+
 ## Credentials
 
 Most tools use public APIs. Census requires `CENSUS_API_KEY`; EPA AQS requires `EPA_AQS_EMAIL` and `EPA_AQS_API_KEY`. Never request that credentials be pasted into chat and never print credential values. If a credential is missing, identify only its variable name and continue with independent datasets.

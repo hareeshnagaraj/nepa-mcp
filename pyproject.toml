@@ -16,6 +16,7 @@ classifiers = [
 dependencies = [
     "beautifulsoup4>=4.12.0",
     "fastmcp==3.4.4",
+    "folium>=0.20.0",
     "httpx>=0.28.0",
     "platformdirs>=4.0.0",
     "pyproj>=3.7.0",
@@ -58,6 +59,7 @@ packages = ["nepa_mcp", "nepa_mcp_common"]
 "gbif" = "nepa_mcp/_servers/gbif"
 "gis" = "nepa_mcp/_servers/gis"
 "ipac" = "nepa_mcp/_servers/ipac"
+"map_composer" = "nepa_mcp/_servers/map_composer"
 "nepa_assist" = "nepa_mcp/_servers/nepa_assist"
 "noaa" = "nepa_mcp/_servers/noaa"
 "nrhp" = "nepa_mcp/_servers/nrhp"

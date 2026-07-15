@@ -75,7 +75,7 @@ async def render_tool_catalog() -> str:
         "# MCP Tool Catalog",
         "",
         (
-            f"NEPA MCP provides {len(SERVER_SPECS)} independent domain servers "
+            f"NEPA MCP provides {len(SERVER_SPECS)} independent servers "
             f"with {len(rows)} tools. Use this catalog to choose the smallest set "
             "of servers needed for a workflow."
         ),

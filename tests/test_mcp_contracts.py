@@ -24,6 +24,7 @@ EXPECTED_TOOL_COUNTS = {
     "gbif": 2,
     "gis": 3,
     "ipac": 1,
+    "map_composer": 3,
     "nepa_assist": 1,
     "noaa": 1,
     "nrhp": 1,
@@ -78,6 +79,11 @@ EXPECTED_TOOL_NAMES = {
         "summarize_roi_buffer",
     },
     "ipac": {"get_ipac_resources_in_roi"},
+    "map_composer": {
+        "compose_environmental_map",
+        "export_all_layers_geojson",
+        "list_available_layers",
+    },
     "nepa_assist": {"analyze_nepa_assist_screening"},
     "noaa": {"get_noaa_critical_habitat_in_roi"},
     "nrhp": {"get_nrhp_properties_in_roi"},
@@ -161,10 +167,24 @@ def test_tool_schemas_are_agent_readable(server_name: str) -> None:
     for tool in tools:
         assert tool.description, f"{server_name}.{tool.name} needs a tool description"
         assert tool.annotations is not None
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is True
-        assert tool.annotations.openWorldHint is True
+        if server_name == "map_composer" and tool.name in {
+            "compose_environmental_map",
+            "export_all_layers_geojson",
+        }:
+            assert tool.annotations.readOnlyHint is False
+            assert tool.annotations.destructiveHint is False
+            assert tool.annotations.idempotentHint is False
+            assert tool.annotations.openWorldHint is True
+        elif server_name == "map_composer":
+            assert tool.annotations.readOnlyHint is True
+            assert tool.annotations.destructiveHint is False
+            assert tool.annotations.idempotentHint is True
+            assert tool.annotations.openWorldHint is False
+        else:
+            assert tool.annotations.readOnlyHint is True
+            assert tool.annotations.destructiveHint is False
+            assert tool.annotations.idempotentHint is True
+            assert tool.annotations.openWorldHint is True
 
         schema = tool.inputSchema
         assert schema["type"] == "object"

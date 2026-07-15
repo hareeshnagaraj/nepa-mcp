@@ -48,6 +48,11 @@ command = "nepa-mcp"
 args = ["server", "ipac"]
 env = { PYTHONUNBUFFERED = "1" }
 
+[mcp_servers.map_composer]
+command = "nepa-mcp"
+args = ["server", "map_composer"]
+env = { PYTHONUNBUFFERED = "1" }
+
 [mcp_servers.nepa_assist]
 command = "nepa-mcp"
 args = ["server", "nepa_assist"]

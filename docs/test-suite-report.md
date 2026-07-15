@@ -1,5 +1,10 @@
 # NEPA-MCP Server Test Suite Report
 
+> [!NOTE]
+> This report is a historical snapshot from before the Map Composer server was
+> added. The current toolkit contains 19 MCP servers; see the generated
+> [MCP Tool Catalog](mcp-tool-catalog.md) for the live inventory.
+
 _Repository: `nepa-mcp-server` · Branch: `add-five-tier-server-test-suites`_
 _Scope: categorized test coverage added for all 18 MCP servers, plus repo-health / static-analysis checks._
 

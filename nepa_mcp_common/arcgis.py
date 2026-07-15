@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -165,6 +166,11 @@ class ArcGISService:
         simplify_geometry: bool = True,
         simplification_tolerance: float | None = None,
         out_sr: int | None = None,
+        geometry_type: str = "esriGeometryPolygon",
+        in_sr: int = 4326,
+        spatial_relation: str = "esriSpatialRelIntersects",
+        extra_params: dict[str, Any] | None = None,
+        max_attempts: int = 3,
     ) -> ArcGISFeatureQueryResult:
         """Query ArcGIS features with pagination and defensive response handling.
 
@@ -173,6 +179,13 @@ class ArcGISService:
         numeric coordinates.
         """
         import requests
+
+        if page_size <= 0:
+            raise ValueError("page_size must be greater than zero")
+        if max_features <= 0:
+            raise ValueError("max_features must be greater than zero")
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be greater than zero")
 
         url = f"{service_url}/{layer_id}/query"
         service_label = service_name or f"ArcGIS layer {service_url}/{layer_id}"
@@ -183,15 +196,34 @@ class ArcGISService:
         )
         base_params = {
             "geometry": json.dumps(query_geometry),
-            "geometryType": "esriGeometryPolygon",
-            "inSR": 4326,
-            "spatialRel": "esriSpatialRelIntersects",
+            "geometryType": geometry_type,
+            "inSR": in_sr,
+            "spatialRel": spatial_relation,
             "returnGeometry": return_geometry,
             "outFields": out_fields,
             "f": "json",
         }
         if out_sr is not None:
             base_params["outSR"] = int(out_sr)
+        if extra_params:
+            protected_params = {
+                "geometry",
+                "geometryType",
+                "inSR",
+                "spatialRel",
+                "returnGeometry",
+                "outFields",
+                "outSR",
+                "f",
+                "resultOffset",
+                "resultRecordCount",
+            }
+            conflicts = protected_params.intersection(extra_params)
+            if conflicts:
+                raise ValueError(
+                    "extra_params cannot override managed ArcGIS query parameters: " + ", ".join(sorted(conflicts))
+                )
+            base_params.update(extra_params)
 
         features: list[dict[str, Any]] = []
         warnings: list[str] = []
@@ -199,25 +231,44 @@ class ArcGISService:
         truncated = False
 
         while True:
+            request_count = min(page_size, max_features - len(features))
             params = {
                 **base_params,
                 "resultOffset": offset,
-                "resultRecordCount": page_size,
+                "resultRecordCount": request_count,
             }
-            try:
-                response = requests.post(url, data=params, timeout=timeout, headers=headers)
-                response.raise_for_status()
-                payload = response.json()
-            except requests.RequestException as exc:
-                raise RuntimeError(f"{service_label} request failed: {exc}") from exc
-            except ValueError as exc:
-                raise RuntimeError(f"{service_label} returned invalid JSON") from exc
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    response = requests.post(url, data=params, timeout=timeout, headers=headers)
+                    response.raise_for_status()
+                    payload = response.json()
+                    break
+                except requests.RequestException as exc:
+                    status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                    retriable = isinstance(exc, (requests.Timeout, requests.ConnectionError)) or status_code in {
+                        429,
+                        500,
+                        502,
+                        503,
+                        504,
+                    }
+                    if attempt >= max_attempts or not retriable:
+                        raise RuntimeError(f"{service_label} request failed: {exc}") from exc
+                    time.sleep(0.25 * (2 ** (attempt - 1)))
+                except ValueError as exc:
+                    raise RuntimeError(f"{service_label} returned invalid JSON") from exc
 
             if not isinstance(payload, dict):
                 raise RuntimeError(f"{service_label} returned unexpected JSON type: {type(payload).__name__}")
             if "error" in payload:
                 error = payload["error"]
-                message = error.get("message", "Unknown ArcGIS error") if isinstance(error, dict) else str(error)
+                if isinstance(error, dict):
+                    message = error.get("message", "Unknown ArcGIS error")
+                    details = error.get("details") or []
+                    if isinstance(details, list) and details:
+                        message = f"{message}: {'; '.join(str(detail) for detail in details)}"
+                else:
+                    message = str(error)
                 raise RuntimeError(f"{service_label} returned an error: {message}")
 
             page_features = payload.get("features") or []
@@ -246,7 +297,7 @@ class ArcGISService:
                         f"{service_label} reached the {max_features} feature safety cap; results are partial."
                     )
                 break
-            if not exceeded and len(page_features) < page_size:
+            if not exceeded and len(page_features) < request_count:
                 break
             if not page_features:
                 if exceeded:
