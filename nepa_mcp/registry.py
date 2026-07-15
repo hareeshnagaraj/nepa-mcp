@@ -28,6 +28,7 @@ SERVER_SPECS = (
     ServerSpec("gbif", "GBIF species occurrences and biodiversity data"),
     ServerSpec("gis", "Region-of-interest geometry and area utilities"),
     ServerSpec("ipac", "USFWS IPaC species and habitat resources"),
+    ServerSpec("map_composer", "Interactive environmental maps and GeoJSON exports"),
     ServerSpec("nepa_assist", "EPA NEPAssist environmental screening"),
     ServerSpec("noaa", "NOAA West Coast critical habitat"),
     ServerSpec("nrhp", "National Register of Historic Places properties"),

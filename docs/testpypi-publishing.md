@@ -116,10 +116,10 @@ uv pip install \
 ## One package install, separate MCP servers
 
 `pipx install nepa-mcp` installs one Python distribution and creates one console
-command. It does not install each server separately. The wheel contains all 18
+command. It does not install each server separately. The wheel contains all 19
 server implementations.
 
-The Codex plugin and generated client configurations then register 18 separate
+The Codex plugin and generated client configurations then register 19 separate
 MCP entries. Each entry starts only its own domain process:
 
 ```json
@@ -163,10 +163,10 @@ One stdio command creates one MCP protocol connection. Therefore:
 nepa-mcp server all
 ```
 
-is necessarily an aggregate MCP server. It cannot appear to the client as 18
+is necessarily an aggregate MCP server. It cannot appear to the client as 19
 separate MCP connections. This command remains an optional testing convenience
 and is not used by the Codex plugin or shipped client configurations.
 
 For the normal non-aggregate setup, install the package once and let the plugin
-or `configure` command register the 18 individual `nepa-mcp server <name>`
+or `configure` command register the 19 individual `nepa-mcp server <name>`
 entries.

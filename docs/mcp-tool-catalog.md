@@ -1,6 +1,6 @@
 # MCP Tool Catalog
 
-NEPA MCP provides 18 independent domain servers with 43 tools. Use this catalog to choose the smallest set of servers needed for a workflow.
+NEPA MCP provides 19 independent servers with 46 tools. Use this catalog to choose the smallest set of servers needed for a workflow.
 
 This file is generated from the server registry and each server's live MCP `tools/list` contract. Do not edit it manually. Regenerate it with `uv run python scripts/generate_tool_catalog.py`; add `--check` to verify it without writing.
 
@@ -35,6 +35,9 @@ This file is generated from the server registry and each server's live MCP `tool
 | `gis` | `get_roi_geojson` | Return ROI GeoJSON for the requested buffer as formatted JSON. |
 | `gis` | `summarize_roi_buffer` | Generate a human-readable ROI summary from lat/lon with a configurable buffer. |
 | `ipac` | `get_ipac_resources_in_roi` | Query USFWS IPaC for ESA species, migratory birds, wetlands, critical habitat, and refuge data. |
+| `map_composer` | `compose_environmental_map` | Create an interactive environmental screening map as a local HTML artifact. |
+| `map_composer` | `export_all_layers_geojson` | Export selected environmental map layers as one provenance-rich GeoJSON artifact. |
+| `map_composer` | `list_available_layers` | List Map Composer layer IDs, source publishers, review uses, and profiles. |
 | `nepa_assist` | `analyze_nepa_assist_screening` | Analyze EPA NEPAssist environmental screening layers for a location. |
 | `noaa` | `get_noaa_critical_habitat_in_roi` | Query NOAA for West Coast Region ESA critical habitat within the ROI. |
 | `nrhp` | `get_nrhp_properties_in_roi` | Query NRHP for historic properties within the ROI for Section 106 NHPA screening. |

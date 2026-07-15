@@ -9,6 +9,7 @@ dist/
 venv/
 .ruff_cache/
 .pytest_cache/
+.playwright-cli/
 .mypy_cache/
 .coverage
 coverage.xml

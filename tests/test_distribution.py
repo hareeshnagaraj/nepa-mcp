@@ -29,6 +29,7 @@ EXPECTED_SERVERS = {
     "gbif",
     "gis",
     "ipac",
+    "map_composer",
     "nepa_assist",
     "noaa",
     "nrhp",
@@ -216,10 +217,12 @@ async def _aggregate_tool_names() -> set[str]:
 
 def test_aggregate_server_discovers_all_tools() -> None:
     tool_names = asyncio.run(_aggregate_tool_names())
-    assert len(tool_names) == 43
+    assert len(tool_names) == 46
     assert {
         "summarize_roi_buffer",
         "get_ipac_resources_in_roi",
         "cfr_resolve_citation",
         "get_nrhp_properties_in_roi",
+        "compose_environmental_map",
+        "export_all_layers_geojson",
     } <= tool_names

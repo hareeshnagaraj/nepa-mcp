@@ -110,6 +110,17 @@
         "PYTHONUNBUFFERED": "1"
       }
     },
+    "map_composer": {
+      "type": "stdio",
+      "command": "nepa-mcp",
+      "args": [
+        "server",
+        "map_composer"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
     "nepa_assist": {
       "type": "stdio",
       "command": "nepa-mcp",
