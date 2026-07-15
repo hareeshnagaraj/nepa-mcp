@@ -147,12 +147,6 @@ partial, and failed layer counts so source coverage remains visible.
   <em>Chesapeake Bay watershed, 20-mile project area: 12 overlays shown from 16 returned locally in a 32-layer request, with no failed sources. The generated map keeps every returned layer independently toggleable.</em>
 </p>
 
-The server exposes three tools:
-
-- `compose_environmental_map`
-- `export_all_layers_geojson`
-- `list_available_layers`
-
 See the [Map Composer guide](docs/map-composer.md) for profile membership, the
 complete 32-layer catalog, output behavior, provenance, and artifact storage.
 
