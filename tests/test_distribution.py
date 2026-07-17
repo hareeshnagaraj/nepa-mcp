@@ -58,6 +58,14 @@ def test_child_servers_use_the_current_interpreter_and_stdio_cli() -> None:
     assert config["env"] == {"PYTHONUNBUFFERED": "1"}
 
 
+def test_direct_server_entrypoints_use_stdio_without_network_listeners() -> None:
+    for spec in SERVER_SPECS:
+        source = server_entrypoint(spec.name).read_text(encoding="utf-8")
+        assert 'mcp.run(transport="stdio", show_banner=False)' in source
+        assert "streamable-http" not in source
+        assert "0.0.0.0" not in source
+
+
 def test_credential_template_is_private_and_environment_wins(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "config" / "credentials.env"
     monkeypatch.setenv("NEPA_MCP_CONFIG_FILE", str(config_path))

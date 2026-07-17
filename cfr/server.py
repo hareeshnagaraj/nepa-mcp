@@ -13,7 +13,6 @@ API Documentation:
 import sys
 import json
 import logging
-import os
 import re as _re_strat
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -54,9 +53,6 @@ from src.apis.cfr_api import (  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cfr-mcp-server")
-
-MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
-MCP_PORT = int(os.environ.get("MCP_PORT", "8000"))
 
 mcp = FastMCP("cfr-server")
 
@@ -1092,13 +1088,4 @@ def cfr_resolve_executive_order(
 
 
 if __name__ == "__main__":
-    transport = os.environ.get("MCP_TRANSPORT", "streamable-http")
-    if transport == "http":
-        transport = "streamable-http"
-
-    if transport == "stdio":
-        mcp.run(transport="stdio")
-    elif transport == "streamable-http":
-        mcp.run(transport="streamable-http", host=MCP_HOST, port=MCP_PORT, stateless_http=True)
-    else:
-        raise ValueError(f"Invalid MCP_TRANSPORT={transport!r}; expected 'stdio' or 'streamable-http'.")
+    mcp.run(transport="stdio", show_banner=False)

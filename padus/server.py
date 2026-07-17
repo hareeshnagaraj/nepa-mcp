@@ -112,4 +112,4 @@ def get_padus_protected_areas_in_roi(latitude: Latitude, longitude: Longitude, b
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", stateless_http=True)
+    mcp.run(transport="stdio", show_banner=False)

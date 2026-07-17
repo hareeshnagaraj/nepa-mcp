@@ -202,4 +202,4 @@ def get_efh_hms_cps_groundfish_tool(latitude: Latitude, longitude: Longitude, bu
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", stateless_http=True)
+    mcp.run(transport="stdio", show_banner=False)
