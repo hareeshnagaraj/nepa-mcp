@@ -10,6 +10,7 @@ venv/
 .ruff_cache/
 .pytest_cache/
 .playwright-cli/
+.playwright-mcp/
 .mypy_cache/
 .coverage
 coverage.xml
@@ -35,9 +36,15 @@ handoffs/
 
 # Local outputs
 output/
+tmp/
+
+# Pre-release review material that must stay out of the public repository
+docs/*.docx
+EIDR/
 
 # OS and editor files
 .DS_Store
+.claude/
 .vscode/
 !.vscode/
 .vscode/*
