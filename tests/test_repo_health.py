@@ -65,6 +65,24 @@ class TestFilesystemChecks:
     def test_readme_exists(self):
         assert (ROOT / "README.md").exists()
 
+    def test_public_governance_files_exist(self):
+        for filename in (
+            "CODE_OF_CONDUCT.md",
+            "CONTRIBUTING.md",
+            "MAINTAINERS.md",
+            "SUPPORT.md",
+        ):
+            assert (ROOT / filename).exists(), f"{filename} is missing"
+
+        contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        conduct = (ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
+        assert "Developer Certificate of Origin 1.1" in contributing
+        assert 'git commit -s -m "Describe the change"' in contributing
+        assert "Contributor Covenant 3.0" in conduct
+        assert "policyai@pnnl.gov" in conduct
+        assert "Sarthak Chaturvedi" in conduct
+        assert "[NOTE:" not in conduct
+
 
 # ---------------------------------------------------------------------------
 # Secrets scan

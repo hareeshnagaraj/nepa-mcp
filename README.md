@@ -281,11 +281,12 @@ subject to each source's terms and authoritative-use guidance.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please keep changes scoped to the public
-server runtime, include tests for behavioral changes, and run the development
-checks above before opening a pull request. See [Support](SUPPORT.md) for the
-project's best-effort support boundary and issue-reporting guidance. Current
-repository-governance roles are listed in [Project Roles](MAINTAINERS.md).
+Issues and pull requests are welcome. See [Contributing](CONTRIBUTING.md) for
+development setup, required checks, pull-request expectations, and DCO
+sign-off. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+See [Support](SUPPORT.md) for the project's best-effort support boundary and
+issue-reporting guidance. Current repository-governance roles are listed in
+[Project Roles](MAINTAINERS.md).
 
 ## Acknowledgments
 
