@@ -1,6 +1,6 @@
 <div align="center" style="text-align: center;">
 
-  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI — NEPA MCP Toolkit™" width="740">
+  <img src="https://raw.githubusercontent.com/pnnl-int/nepa-mcp-server/main/docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI — NEPA MCP Toolkit™" width="740">
   <br>
 
   <p>
@@ -9,10 +9,10 @@
 
   <p>
   Works with<br>
-  <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="docs/assets/badges/codex-client-config.svg" height="20"></a>
-  <a href="#codex-plugin"><img alt="Codex plugin" src="docs/assets/badges/codex-plugin.svg" height="20"></a>
+  <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="https://raw.githubusercontent.com/pnnl-int/nepa-mcp-server/main/docs/assets/badges/codex-client-config.svg" height="20"></a>
+  <a href="#codex-plugin"><img alt="Codex plugin" src="https://raw.githubusercontent.com/pnnl-int/nepa-mcp-server/main/docs/assets/badges/codex-plugin.svg" height="20"></a>
   <a href="#configure-an-mcp-client"><img alt="Claude Code client configuration" src="https://img.shields.io/badge/Claude_Code-MCP_Client-D97757?style=flat-square&amp;logo=anthropic&amp;logoColor=white" height="20"></a>
-  <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="docs/assets/badges/vscode-mcp-client.svg" height="20"></a>
+  <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="https://raw.githubusercontent.com/pnnl-int/nepa-mcp-server/main/docs/assets/badges/vscode-mcp-client.svg" height="20"></a>
   </p>
 
   <p>
@@ -21,7 +21,7 @@
   <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square" height="20"></a>
   <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white" height="20"></a>
   <a href="https://shapely.readthedocs.io/"><img alt="Shapely 2.0+" src="https://img.shields.io/badge/Shapely-2.0%2B-2F6F3E?style=flat-square" height="20"></a>
-  <a href="LICENSE"><img alt="BSD 2-Clause License" src="https://img.shields.io/badge/License-BSD_2--Clause-F4B942?style=flat-square" height="20"></a>
+  <a href="https://github.com/pnnl-int/nepa-mcp-server/blob/main/LICENSE"><img alt="BSD 2-Clause License" src="https://img.shields.io/badge/License-BSD_2--Clause-F4B942?style=flat-square" height="20"></a>
   </p>
 
 </div>
@@ -36,8 +36,8 @@ layers. Together, the tools and layers represent **78 environmental and
 regulatory research capabilities**. These capabilities draw on public data
 from 12 federal agencies, along with interagency and nonfederal sources.
 
-The [MCP Tool Catalog](docs/mcp-tool-catalog.md) provides the complete server
-and tool inventory. The [Map Composer MCP server](docs/map-composer.md) queries
+The [MCP Tool Catalog](https://github.com/pnnl-int/nepa-mcp-server/blob/main/docs/mcp-tool-catalog.md) provides the complete server
+and tool inventory. The [Map Composer MCP server](https://github.com/pnnl-int/nepa-mcp-server/blob/main/docs/map-composer.md) queries
 public GIS services from eight federal data publishers at request time. It can
 compose selected results into an interactive map or a provenance-rich GeoJSON
 export.
@@ -138,8 +138,8 @@ for the question at hand. Every map reports requested, rendered, empty,
 partial, and failed layer counts so source coverage remains visible.
 
 <p align="center">
-  <a href="docs/map-composer.md">
-    <img src="docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 20-mile Chesapeake Bay watershed project area with 12 overlays visible" width="900">
+  <a href="https://github.com/pnnl-int/nepa-mcp-server/blob/main/docs/map-composer.md">
+    <img src="https://raw.githubusercontent.com/pnnl-int/nepa-mcp-server/main/docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 20-mile Chesapeake Bay watershed project area with 12 overlays visible" width="900">
   </a>
 </p>
 
@@ -147,7 +147,7 @@ partial, and failed layer counts so source coverage remains visible.
   <em>Chesapeake Bay watershed, 20-mile project area: 12 overlays shown from 16 returned locally in a 32-layer request, with no failed sources. The generated map keeps every returned layer independently toggleable.</em>
 </p>
 
-See the [Map Composer guide](docs/map-composer.md) for profile membership, the
+See the [Map Composer guide](https://github.com/pnnl-int/nepa-mcp-server/blob/main/docs/map-composer.md) for profile membership, the
 complete 32-layer catalog, output behavior, provenance, and artifact storage.
 
 ## Credentials
@@ -202,7 +202,7 @@ Credentials are not copied into MCP client or plugin configuration, and
 > to construct ROI buffers. Esri is a supporting geometry-service provider,
 > not the publisher of the agency datasets identified above.
 
-See [Geographic Inputs and Data Behavior](docs/geographic-inputs-and-data-behavior.md)
+See [Geographic Inputs and Data Behavior](https://github.com/pnnl-int/nepa-mcp-server/blob/main/docs/geographic-inputs-and-data-behavior.md)
 for ROI constraints, area and clipping semantics, coverage warnings, and
 partial-source behavior across geographic servers.
 
@@ -274,19 +274,21 @@ and contributing dataset publishers
 > is an independent project and is not affiliated with, sponsored by, or
 > endorsed by these organizations.
 
-The [data-source inventory](docs/mcp-data-source-licenses.md) records
+The [data-source inventory](https://github.com/pnnl-int/nepa-mcp-server/blob/main/docs/mcp-data-source-licenses.md) records
 the source agencies, endpoints, authentication requirements, license signals,
 and release notes for the current server inventory. Upstream data remains
 subject to each source's terms and authoritative-use guidance.
 
 ## Contributing
 
-Issues and pull requests are welcome. See [Contributing](CONTRIBUTING.md) for
+Issues and pull requests are welcome. See [Contributing](https://github.com/pnnl-int/nepa-mcp-server/blob/main/CONTRIBUTING.md) for
 development setup, required checks, pull-request expectations, and DCO
-sign-off. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
-See [Support](SUPPORT.md) for the project's best-effort support boundary and
+sign-off. Participation is governed by the [Code of Conduct](https://github.com/pnnl-int/nepa-mcp-server/blob/main/CODE_OF_CONDUCT.md).
+Report suspected vulnerabilities through the private process in the
+[Security Policy](https://github.com/pnnl-int/nepa-mcp-server/blob/main/SECURITY.md).
+See [Support](https://github.com/pnnl-int/nepa-mcp-server/blob/main/SUPPORT.md) for the project's best-effort support boundary and
 issue-reporting guidance. Current repository-governance roles are listed in
-[Project Roles](MAINTAINERS.md).
+[Project Roles](https://github.com/pnnl-int/nepa-mcp-server/blob/main/MAINTAINERS.md).
 
 ## Acknowledgments
 
@@ -304,13 +306,13 @@ deployment pathways and repository release hygiene.
 ## License
 
 The repository's source code is available under the
-[BSD 2-Clause License](LICENSE). The accompanying [PNNL/DOE notice](NOTICE)
+[BSD 2-Clause License](https://github.com/pnnl-int/nepa-mcp-server/blob/main/LICENSE). The accompanying [PNNL/DOE notice](https://github.com/pnnl-int/nepa-mcp-server/blob/main/NOTICE)
 contains the sponsorship, warranty, endorsement, and views disclaimer.
 
 ## Citation
 
 If you use NEPA MCP in research, environmental assessments, or other scientific
-or technical publications, please use the metadata in [`CITATION.cff`](CITATION.cff)
+or technical publications, please use the metadata in [`CITATION.cff`](https://github.com/pnnl-int/nepa-mcp-server/blob/main/CITATION.cff)
 or cite it as:
 
 ```bibtex

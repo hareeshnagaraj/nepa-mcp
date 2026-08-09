@@ -70,18 +70,38 @@ class TestFilesystemChecks:
             "CODE_OF_CONDUCT.md",
             "CONTRIBUTING.md",
             "MAINTAINERS.md",
+            "SECURITY.md",
             "SUPPORT.md",
         ):
             assert (ROOT / filename).exists(), f"{filename} is missing"
 
         contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
         conduct = (ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
+        security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
         assert "Developer Certificate of Origin 1.1" in contributing
         assert 'git commit -s -m "Describe the change"' in contributing
         assert "Contributor Covenant 3.0" in conduct
         assert "policyai@pnnl.gov" in conduct
+        assert "PermitAI mailbox" in conduct
         assert "Sarthak Chaturvedi" in conduct
         assert "[NOTE:" not in conduct
+        assert "policyai@pnnl.gov" in security
+        assert "NEPA MCP Security Report" in security
+        assert "PermitAI project mailbox" in security
+        assert "Do not report suspected vulnerabilities through a public GitHub issue" in security
+
+    def test_readme_package_links_are_absolute(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        link_matches = re.findall(
+            r'(?:src|href)="([^"]+)"|\]\(([^)]+)\)',
+            readme,
+        )
+        relative_targets = []
+        for html_target, markdown_target in link_matches:
+            target = html_target or markdown_target
+            if not target.startswith(("https://", "http://", "#", "mailto:")):
+                relative_targets.append(target)
+        assert relative_targets == [], f"README contains relative package links: {relative_targets}"
 
 
 # ---------------------------------------------------------------------------

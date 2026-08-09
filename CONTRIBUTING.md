@@ -6,8 +6,8 @@ should preserve the distinction between screening information and formal
 agency, legal, consultation, jurisdictional, or permitting determinations.
 
 Please review the [Code of Conduct](CODE_OF_CONDUCT.md),
-[Support policy](SUPPORT.md), and [project roles](MAINTAINERS.md) before
-participating.
+[Security policy](SECURITY.md), [Support policy](SUPPORT.md), and
+[project roles](MAINTAINERS.md) before participating.
 
 ## Development setup
 
@@ -133,6 +133,5 @@ credentials, controlled information, private project data, suspected
 vulnerability details, or Code of Conduct reports in a public issue.
 
 Code of Conduct reports should follow the private contact instructions in
-`CODE_OF_CONDUCT.md`. Security-reporting instructions will be published in
-`SECURITY.md` after the repository's private vulnerability-intake route is
-enabled and verified.
+`CODE_OF_CONDUCT.md`. Suspected vulnerabilities should follow the private
+reporting instructions in `SECURITY.md`.
