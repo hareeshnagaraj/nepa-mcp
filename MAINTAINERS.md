@@ -20,5 +20,6 @@ but does not by itself grant authority to merge changes or publish releases.
 ## Updating roles
 
 Changes to maintainer or release authority should be recorded through a
-reviewed repository change. Security-reporting responsibility will be added
-after the project's private reporting route is established and verified.
+reviewed repository change. Security reports are received through the route in
+`SECURITY.md`; the primary maintainer coordinates technical triage with
+designated recipients of the PermitAI project mailbox.

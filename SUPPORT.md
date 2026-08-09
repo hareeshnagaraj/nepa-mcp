@@ -28,10 +28,9 @@ was unclear.
 
 ## Security reports
 
-Do not report suspected vulnerabilities through public issues. A verified
-private intake route will be published in `SECURITY.md` before public release.
-Until then, use an existing private channel to ask the primary maintainer for a
-secure reporting method, without including vulnerability details in the
+Do not report suspected vulnerabilities through public issues. Follow the
+private reporting instructions in [SECURITY.md](SECURITY.md), and do not
+include credentials, controlled information, or sensitive project data in the
 initial message.
 
 ## Agency, legal, and project determinations

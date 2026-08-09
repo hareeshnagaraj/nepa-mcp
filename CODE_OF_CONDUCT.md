@@ -78,8 +78,8 @@ with the subject `NEPA MCP Code of Conduct Report`. Do not submit Code of
 Conduct reports through public issues.
 
 For this project, Community Moderators are Sarthak Chaturvedi, as primary
-project maintainer, and designated recipients of the PolicyAI mailbox. A report
-concerning the primary maintainer will be handled by designated PolicyAI
+project maintainer, and designated recipients of the PermitAI mailbox. A report
+concerning the primary maintainer will be handled by designated PermitAI
 mailbox recipients without involving the subject of the report.
 
 Community Moderators take reports of violations seriously and will make every
