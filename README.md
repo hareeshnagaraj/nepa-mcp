@@ -21,7 +21,7 @@
   <a href="https://gofastmcp.com/"><img alt="FastMCP 3.4.4" src="https://img.shields.io/badge/FastMCP-3.4.4-009688?style=flat-square" height="20"></a>
   <a href="https://docs.pydantic.dev/"><img alt="Pydantic 2.12+" src="https://img.shields.io/badge/Pydantic-2.12%2B-E92063?style=flat-square&amp;logo=pydantic&amp;logoColor=white" height="20"></a>
   <a href="https://shapely.readthedocs.io/"><img alt="Shapely 2.0+" src="https://img.shields.io/badge/Shapely-2.0%2B-2F6F3E?style=flat-square" height="20"></a>
-  <a href="LICENSE"><img alt="BSD 3-Clause License" src="https://img.shields.io/badge/License-BSD_3--Clause-F4B942?style=flat-square" height="20"></a>
+  <a href="LICENSE"><img alt="BSD 2-Clause License" src="https://img.shields.io/badge/License-BSD_2--Clause-F4B942?style=flat-square" height="20"></a>
   </p>
 
 </div>
@@ -59,7 +59,7 @@ export.
 Clone the public repository and install the runtime:
 
 ```bash
-git clone https://github.com/sarthakchat/nepa-mcp-server.git
+git clone https://github.com/pnnl-int/nepa-mcp-server.git
 cd nepa-mcp-server
 pipx install .
 ```
@@ -283,12 +283,28 @@ subject to each source's terms and authoritative-use guidance.
 
 Issues and pull requests are welcome. Please keep changes scoped to the public
 server runtime, include tests for behavioral changes, and run the development
-checks above before opening a pull request.
+checks above before opening a pull request. See [Support](SUPPORT.md) for the
+project's best-effort support boundary and issue-reporting guidance. Current
+repository-governance roles are listed in [Project Roles](MAINTAINERS.md).
+
+## Acknowledgments
+
+Mike Parker and Daniel Nally provided NEPA subject-matter expertise during
+development. Tracy Fuentes provided NEPA subject-matter expertise during
+evaluation of the IPaC MCP server.
+
+Anastasia Bernat provided GIS consultation during development.
+
+Weili Xu provided consultation on plugin integration and MCP distribution.
+
+Scott Spare, Derek Lilienthal, and David Kocen provided consultation on MCP
+deployment pathways and repository release hygiene.
 
 ## License
 
 The repository's source code is available under the
-[BSD 3-Clause License](LICENSE).
+[BSD 2-Clause License](LICENSE). The accompanying [PNNL/DOE notice](NOTICE)
+contains the sponsorship, warranty, endorsement, and views disclaimer.
 
 ## Citation
 
@@ -298,12 +314,12 @@ or cite it as:
 
 ```bibtex
 @software{nepa_mcp,
-  author       = {Chaturvedi, Sarthak and Chintalapati, Renuka and Nally, Dan and Parker, Mike and Munikoti, Sai and Horawalavithana, Sameera},
+  author       = {Chaturvedi, Sarthak and Chintalapati, Renuka and Munikoti, Sai and Horawalavithana, Sameera},
   title        = {NEPA MCP: Independent MCP Servers for NEPA Environmental Screening},
   year         = {2026},
   institution  = {Pacific Northwest National Laboratory},
-  url          = {https://github.com/sarthakchat/nepa-mcp-server},
-  version      = {0.1.0},
-  license      = {BSD-3-Clause}
+  url          = {https://github.com/pnnl-int/nepa-mcp-server},
+  version      = {0.1.0rc1},
+  license      = {BSD-2-Clause}
 }
 ```

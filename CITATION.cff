@@ -7,14 +7,10 @@ authors:
     given-names: Sarthak
   - family-names: Chintalapati
     given-names: Renuka
-  - family-names: Nally
-    given-names: Dan
-  - family-names: Parker
-    given-names: Mike
   - family-names: Munikoti
     given-names: Sai
   - family-names: Horawalavithana
     given-names: Sameera
-version: 0.1.0
-repository-code: "https://github.com/sarthakchat/nepa-mcp-server"
-license: BSD-3-Clause
+version: 0.1.0rc1
+repository-code: "https://github.com/pnnl-int/nepa-mcp-server"
+license: BSD-2-Clause

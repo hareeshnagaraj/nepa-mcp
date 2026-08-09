@@ -21,9 +21,24 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 SERVER_NAMES = [
-    "blm", "census", "cfr", "efh", "epa_aqs", "esa_ranges", "fema_nfhl",
-    "gbif", "gis", "ipac", "nepa_assist", "noaa", "nrhp", "padus", "pcsrf",
-    "tigerweb_counties", "tribal", "usace",
+    "blm",
+    "census",
+    "cfr",
+    "efh",
+    "epa_aqs",
+    "esa_ranges",
+    "fema_nfhl",
+    "gbif",
+    "gis",
+    "ipac",
+    "nepa_assist",
+    "noaa",
+    "nrhp",
+    "padus",
+    "pcsrf",
+    "tigerweb_counties",
+    "tribal",
+    "usace",
 ]
 
 
@@ -119,7 +134,9 @@ class TestReadme:
 
 
 def _tool(name: str) -> str | None:
-    return shutil.which(name) or (str(Path(sys.prefix) / "bin" / name) if (Path(sys.prefix) / "bin" / name).exists() else None)
+    return shutil.which(name) or (
+        str(Path(sys.prefix) / "bin" / name) if (Path(sys.prefix) / "bin" / name).exists() else None
+    )
 
 
 class TestStaticAnalysis:
@@ -136,7 +153,9 @@ class TestStaticAnalysis:
             pytest.skip("mypy not installed")
         proc = subprocess.run(
             [mypy, "nepa_mcp_common/", "--ignore-missing-imports"],
-            cwd=ROOT, capture_output=True, text=True,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
         )
         # The shared core should be free of real (non-stub) type errors.
         assert proc.returncode == 0, f"mypy found issues in nepa_mcp_common:\n{proc.stdout}"
@@ -147,7 +166,9 @@ class TestStaticAnalysis:
             pytest.skip("pip-audit not installed")
         proc = subprocess.run(
             [pip_audit, "--progress-spinner", "off"],
-            cwd=ROOT, capture_output=True, text=True,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
         )
         combined = proc.stdout + proc.stderr
         assert "No known vulnerabilities found" in combined, f"pip-audit output:\n{combined}"
