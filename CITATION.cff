@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata in this file."
-title: "NEPA MCP: Independent MCP Servers for NEPA Environmental Screening"
+title: "PermitAI NEPA MCP Toolkit: Federal Environmental Data, Regulatory Research, and Geospatial Screening"
 type: software
 authors:
   - family-names: Chaturvedi

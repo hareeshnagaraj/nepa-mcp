@@ -316,7 +316,7 @@ or cite it as:
 ```bibtex
 @software{nepa_mcp,
   author       = {Chaturvedi, Sarthak and Chintalapati, Renuka and Munikoti, Sai and Horawalavithana, Sameera},
-  title        = {NEPA MCP: Independent MCP Servers for NEPA Environmental Screening},
+  title        = {PermitAI NEPA MCP Toolkit: Federal Environmental Data, Regulatory Research, and Geospatial Screening},
   year         = {2026},
   institution  = {Pacific Northwest National Laboratory},
   url          = {https://github.com/pnnl-int/nepa-mcp-server},
