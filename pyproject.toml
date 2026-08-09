@@ -65,6 +65,8 @@ packages = ["nepa_mcp", "nepa_mcp_common"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+    "/CODE_OF_CONDUCT.md",
+    "/CONTRIBUTING.md",
     "/LICENSE",
     "/MAINTAINERS.md",
     "/NOTICE",
