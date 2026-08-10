@@ -292,14 +292,17 @@ issue-reporting guidance. Current repository-governance roles are listed in
 
 ## Acknowledgments
 
-[Tracy Fuentes](https://www.pnnl.gov/people/tracy-fuentes) provided NEPA
-subject-matter expertise during evaluation of the IPaC MCP server.
-[Weili Xu](https://www.pnnl.gov/people/weili-xu) provided consultation on
-plugin integration and MCP distribution.
-Scott Spare, [Derek Lilienthal](https://www.pnnl.gov/people/derek-lilienthal),
-and David Kocen provided consultation on MCP deployment pathways and repository
-release hygiene. [Anastasia Bernat](https://www.pnnl.gov/people/anastasia-bernat)
-provided GIS consultation during development.
+The authors acknowledge
+[Tracy Fuentes](https://www.pnnl.gov/people/tracy-fuentes) for NEPA
+subject-matter expertise during evaluation of the IPaC MCP server;
+[Weili Xu](https://www.pnnl.gov/people/weili-xu) for consultation on plugin
+integration and MCP distribution;
+[Scott Spare](https://www.linkedin.com/in/scottspare/),
+[Derek Lilienthal](https://www.pnnl.gov/people/derek-lilienthal), and
+[David Kocen](https://www.linkedin.com/in/david-kocen/) for consultation on MCP
+deployment pathways and repository release hygiene; and
+[Anastasia Bernat](https://www.pnnl.gov/people/anastasia-bernat) for GIS
+consultation during development.
 
 ## License
 
