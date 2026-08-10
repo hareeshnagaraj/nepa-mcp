@@ -292,16 +292,21 @@ issue-reporting guidance. Current repository-governance roles are listed in
 
 ## Acknowledgments
 
-Mike Parker and Daniel Nally provided NEPA subject-matter expertise during
-development. Tracy Fuentes provided NEPA subject-matter expertise during
-evaluation of the IPaC MCP server.
+[Mike Parker](https://www.pnnl.gov/people/mike-parker) and
+[Daniel Nally](https://www.pnnl.gov/people/dan-nally) provided NEPA
+subject-matter expertise during development.
+[Tracy Fuentes](https://www.pnnl.gov/people/tracy-fuentes) provided NEPA
+subject-matter expertise during evaluation of the IPaC MCP server.
 
-Anastasia Bernat provided GIS consultation during development.
+[Anastasia Bernat](https://www.pnnl.gov/people/anastasia-bernat) provided GIS
+consultation during development.
 
-Weili Xu provided consultation on plugin integration and MCP distribution.
+[Weili Xu](https://www.pnnl.gov/people/weili-xu) provided consultation on
+plugin integration and MCP distribution.
 
-Scott Spare, Derek Lilienthal, and David Kocen provided consultation on MCP
-deployment pathways and repository release hygiene.
+Scott Spare, [Derek Lilienthal](https://www.pnnl.gov/people/derek-lilienthal),
+and David Kocen provided consultation on MCP deployment pathways and repository
+release hygiene.
 
 ## License
 
