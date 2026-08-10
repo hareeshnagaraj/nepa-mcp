@@ -138,7 +138,7 @@ def cfr_resolve_citation(
 ) -> str:
     """Resolve a CFR citation (any depth) to its current verbatim text.
 
-    Accepts citations from "40 CFR 1502.14" through deep paragraph addressing
+    Accepts citations from "43 CFR 46.215" through deep paragraph addressing
     like "40 CFR 261.4(a)(20)(ii)(B)(1)". Returns the verbatim text at the
     addressed depth, the section heading, the ancestry breadcrumb, and any
     cross-references. When the addressed paragraph doesn't exist at `as_of`
@@ -146,7 +146,7 @@ def cfr_resolve_citation(
     `resolution_warning` field — never raises for navigation reasons.
 
     Args:
-        citation: Citation string. Examples: "40 CFR 1502.14",
+        citation: Citation string. Examples: "43 CFR 46.215",
             "33 CFR 328.3(a)", "40 CFR 261.4(a)(20)(ii)(B)(1)".
         as_of: YYYY-MM-DD; None = current (eCFR ~1 day lag).
         include_ancestry: Include the title->section breadcrumb (default True).

@@ -68,12 +68,12 @@ def _disable_cache(api, monkeypatch):
 # A small but realistic eCFR renderer HTML payload for a section with one
 # nested paragraph and a Federal Register citation link.
 SAMPLE_SECTION_HTML = """
-<h4 data-hierarchy-metadata='{"title":"40","part":"1502"}'>&sect; 1502.14 Alternatives.</h4>
-<p class="indent-0">This section is the heart of the environmental impact statement.</p>
-<div id="p-1502.14(a)">
-  <p class="indent-1" data-title="1502.14(a)">Evaluate reasonable alternatives to the proposed action.</p>
-  <div id="p-1502.14(a)(1)">
-    <p class="indent-2" data-title="1502.14(a)(1)">Rigorously explore and objectively evaluate all reasonable alternatives.</p>
+<h4 data-hierarchy-metadata='{"title":"43","part":"46"}'>&sect; 46.215 Categorical exclusions: Extraordinary circumstances.</h4>
+<p class="indent-0">Extraordinary circumstances are factors or circumstances in which a normally excluded action may have a significant environmental effect.</p>
+<div id="p-46.215(a)">
+  <p class="indent-1" data-title="46.215(a)">Significant impacts on public health or safety.</p>
+  <div id="p-46.215(a)(1)">
+    <p class="indent-2" data-title="46.215(a)(1)">Example nested paragraph for parser coverage.</p>
   </div>
 </div>
 <p class="citation">[<a class="fr-reference" href="https://www.federalregister.gov/x" data-reference="85 FR 43304">85 FR 43304</a>, July 16, 2020]</p>
@@ -88,17 +88,17 @@ SAMPLE_SECTION_HTML = """
 class TestParseCitation:
     def test_simple_section(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("40 CFR 1502.14")
-        assert cit.title == 40
-        assert cit.part == 1502
-        assert cit.section == "14"
+        cit = api.parse_cfr_citation("43 CFR 46.215")
+        assert cit.title == 43
+        assert cit.part == 46
+        assert cit.section == "215"
         assert cit.paragraph_path == []
 
     def test_section_symbol_is_stripped(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("40 CFR § 1502.14(a)")
-        assert cit.part == 1502
-        assert cit.section == "14"
+        cit = api.parse_cfr_citation("43 CFR § 46.215(a)")
+        assert cit.part == 46
+        assert cit.section == "215"
         assert cit.paragraph_path == ["a"]
 
     def test_deep_paragraph_path_preserves_case(self):
@@ -112,9 +112,9 @@ class TestParseCitation:
 
     def test_part_only_citation(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("40 CFR Part 1500")
-        assert cit.title == 40
-        assert cit.part == 1500
+        cit = api.parse_cfr_citation("43 CFR Part 46")
+        assert cit.title == 43
+        assert cit.part == 46
         assert cit.section is None
 
     def test_title_only_citation(self):
@@ -126,10 +126,10 @@ class TestParseCitation:
 
     def test_verbose_form(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("Title 40, Part 1502, Section 14")
-        assert cit.title == 40
-        assert cit.part == 1502
-        assert cit.section == "14"
+        cit = api.parse_cfr_citation("Title 43, Part 46, Section 215")
+        assert cit.title == 43
+        assert cit.part == 46
+        assert cit.section == "215"
 
     def test_malformed_raises(self):
         api = _load_cfr_api()
@@ -142,13 +142,13 @@ class TestParseCitation:
 class TestCitationDisplay:
     def test_display_section_with_path(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("40 CFR 1502.14(a)(1)")
-        assert cit.to_display() == "40 CFR 1502.14(a)(1)"
+        cit = api.parse_cfr_citation("43 CFR 46.215(a)(1)")
+        assert cit.to_display() == "43 CFR 46.215(a)(1)"
 
     def test_display_part_only(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("40 CFR Part 1500")
-        assert cit.to_display() == "40 CFR Part 1500"
+        cit = api.parse_cfr_citation("43 CFR Part 46")
+        assert cit.to_display() == "43 CFR Part 46"
 
     def test_display_title_only(self):
         api = _load_cfr_api()
@@ -196,18 +196,18 @@ class TestParseSectionHTML:
         parsed = api._parse_section_html(SAMPLE_SECTION_HTML)
         assert parsed is not None
         assert parsed["heading"].startswith("§")
-        assert "1502.14" in parsed["heading"]
+        assert "46.215" in parsed["heading"]
         # One top-level paragraph with one nested child.
         paras = parsed["paragraphs"]
         assert len(paras) == 1
-        assert paras[0]["citation"] == "1502.14(a)"
+        assert paras[0]["citation"] == "46.215(a)"
         assert paras[0]["depth"] == 1
-        assert paras[0]["children"][0]["citation"] == "1502.14(a)(1)"
+        assert paras[0]["children"][0]["citation"] == "46.215(a)(1)"
 
     def test_preamble_captured(self):
         api = _load_cfr_api()
         parsed = api._parse_section_html(SAMPLE_SECTION_HTML)
-        assert "heart of the environmental impact statement" in parsed["preamble"]
+        assert "normally excluded action may have a significant environmental effect" in parsed["preamble"]
 
     def test_fr_citation_link_captured(self):
         api = _load_cfr_api()
@@ -224,14 +224,14 @@ class TestFindPartInStructure:
     def _structure(self):
         return {
             "type": "title",
-            "identifier": "40",
+            "identifier": "43",
             "children": [
                 {
                     "type": "chapter",
                     "identifier": "I",
                     "children": [
-                        {"type": "part", "identifier": "Part 1500", "children": []},
-                        {"type": "part", "identifier": "Part 1502", "children": []},
+                        {"type": "part", "identifier": "Part 10", "children": []},
+                        {"type": "part", "identifier": "Part 46", "children": []},
                     ],
                 }
             ],
@@ -239,9 +239,9 @@ class TestFindPartInStructure:
 
     def test_finds_nested_part(self):
         api = _load_cfr_api()
-        node = api.find_part_in_structure(self._structure(), 1502)
+        node = api.find_part_in_structure(self._structure(), 46)
         assert node is not None
-        assert node["identifier"] == "Part 1502"
+        assert node["identifier"] == "Part 46"
 
     def test_missing_part_returns_none(self):
         api = _load_cfr_api()
@@ -249,7 +249,7 @@ class TestFindPartInStructure:
 
     def test_empty_structure_returns_none(self):
         api = _load_cfr_api()
-        assert api.find_part_in_structure({}, 1500) is None
+        assert api.find_part_in_structure({}, 46) is None
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ class TestFindPartInStructure:
 class TestCorrelation:
     def test_exact_date_match(self):
         api = _load_cfr_api()
-        events = [{"date": "2023-01-05", "title": 40, "part": 1502, "type": "rule"}]
+        events = [{"date": "2023-01-05", "title": 43, "part": 46, "type": "rule"}]
         docs = [
             {
                 "document_number": "2023-0001",
@@ -268,7 +268,7 @@ class TestCorrelation:
                 "effective_on": "2023-01-05",
                 "type": "RULE",
                 "citation": "88 FR 100",
-                "cfr_references": [{"title": 40, "part": 1502}],
+                "cfr_references": [{"title": 43, "part": 46}],
             }
         ]
         correlated = api.correlate_amendment_events_with_fr_documents(events, docs)
@@ -279,7 +279,7 @@ class TestCorrelation:
 
     def test_no_match_out_of_tolerance(self):
         api = _load_cfr_api()
-        events = [{"date": "2023-01-05", "title": 40, "part": 1502}]
+        events = [{"date": "2023-01-05", "title": 43, "part": 46}]
         docs = [{"document_number": "x", "publication_date": "2022-01-01", "type": "RULE"}]
         correlated = api.correlate_amendment_events_with_fr_documents(events, docs, tolerance_days=7)
         assert correlated[0]["fr_document"] is None
@@ -287,7 +287,7 @@ class TestCorrelation:
 
     def test_event_without_date_flagged(self):
         api = _load_cfr_api()
-        correlated = api.correlate_amendment_events_with_fr_documents([{"title": 40}], [])
+        correlated = api.correlate_amendment_events_with_fr_documents([{"title": 43}], [])
         assert correlated[0]["match_type"] == "invalid_date"
 
 
@@ -302,12 +302,12 @@ class TestVersionsWithMockedHTTP:
         _disable_cache(api, monkeypatch)
         payload = {
             "content_versions": [
-                {"date": "2023-01-01", "substantive": True, "identifier": "1502.14"},
-                {"date": "2023-02-01", "substantive": False, "identifier": "1502.14"},
+                {"date": "2023-01-01", "substantive": True, "identifier": "46.215"},
+                {"date": "2023-02-01", "substantive": False, "identifier": "46.215"},
             ]
         }
         monkeypatch.setattr(api.requests, "get", lambda *_a, **_k: _FakeResponse(json_data=payload))
-        cit = api.parse_cfr_citation("40 CFR 1502.14")
+        cit = api.parse_cfr_citation("43 CFR 46.215")
         all_events = api.get_section_versions(cit, start_date="2023-01-01", end_date="2023-12-31")
         assert len(all_events) == 2
         subst = api.get_section_versions(cit, start_date="2023-01-01", end_date="2023-12-31", substantive_only=True)
