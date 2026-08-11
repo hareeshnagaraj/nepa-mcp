@@ -295,14 +295,14 @@ issue-reporting guidance. Current repository-governance roles are listed in
 The authors acknowledge
 [Tracy Fuentes](https://www.pnnl.gov/people/tracy-fuentes) for NEPA
 subject-matter expertise during evaluation of the IPaC MCP server;
-[Weili Xu](https://www.pnnl.gov/people/weili-xu) for consultation on plugin
-integration and MCP distribution;
+[Weili Xu](https://www.pnnl.gov/people/weili-xu) for consultation on packaging
+MCP servers in Codex Marketplace plugins;
 [Scott Spare](https://www.linkedin.com/in/scottspare/),
 [Derek Lilienthal](https://www.pnnl.gov/people/derek-lilienthal), and
-[David Kocen](https://www.linkedin.com/in/david-kocen/) for consultation on MCP
-deployment pathways and repository release hygiene; and
-[Anastasia Bernat](https://www.pnnl.gov/people/anastasia-bernat) for GIS
-consultation during development.
+[David Kocen](https://www.linkedin.com/in/david-kocen/) for discussions about
+deploying MCP tools in cloud environments; and
+[Anastasia Bernat](https://www.pnnl.gov/people/anastasia-bernat) for sharing
+GIS-related perspectives during project discussions.
 
 ## License
 
