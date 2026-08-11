@@ -91,7 +91,7 @@ class CFRCitation:
             self.paragraph_path = []
 
     def to_display(self) -> str:
-        """Format for display (e.g., '43 CFR 46.215(a)(1)')."""
+        """Format for display (e.g., '43 CFR 46.205(c)(1)')."""
         if self.section:
             base = f"{self.title} CFR {self.part}.{self.section}"
             if self.paragraph_path:
@@ -131,7 +131,7 @@ def parse_cfr_citation(citation: str) -> CFRCitation:
     norm = re.sub(r"C\.F\.R\.", "CFR", norm, flags=re.IGNORECASE)
     norm = re.sub(r"\s+", " ", norm)
 
-    # ---- Pattern A: standard "43 CFR 46.215(a)(1)..." ----
+    # ---- Pattern A: standard "43 CFR 46.205(c)(1)..." ----
     # Match the "title CFR (Part )?part(.section)?" head case-insensitively.
     head = re.match(
         r"\s*(\d+)\s*CFR\s*(?:PART\s*)?(\d+)(?:\.(\d+))?",
@@ -1122,7 +1122,7 @@ def get_executive_order_document(
 # Federal Register volume N was published in year (1935 + N): vol 88 -> 2023.
 _FR_VOL_BASE_YEAR = 1935
 
-# "88 FR 3142" / "88 Fed. Reg. 3142" -> (volume, page).
+# "90 FR 29498" / "90 Fed. Reg. 29498" -> (volume, page).
 _FR_CITATION_RE = re.compile(
     r"(?P<volume>\d{1,3})\s*(?:FR|Fed\.?\s*Reg\.?)\s*(?P<page>\d{1,6})",
     re.IGNORECASE,
@@ -1132,8 +1132,8 @@ _FR_CITATION_RE = re.compile(
 def parse_fr_citation(citation: str) -> tuple[int, int]:
     """Parse a Federal Register citation into (volume, page).
 
-    Accepts "88 FR 3142", "88 Fed. Reg. 3142", and the data-reference form the
-    eCFR renderer emits ("88 FR 3142"). Raises CFRCitationError on malformed
+    Accepts "90 FR 29498", "90 Fed. Reg. 29498", and the data-reference form the
+    eCFR renderer emits ("90 FR 29498"). Raises CFRCitationError on malformed
     input.
     """
     if not citation:
@@ -1141,7 +1141,7 @@ def parse_fr_citation(citation: str) -> tuple[int, int]:
     m = _FR_CITATION_RE.search(citation)
     if not m:
         raise CFRCitationError(
-            f"Could not parse Federal Register citation '{citation}'. Expected a form like '88 FR 3142'."
+            f"Could not parse Federal Register citation '{citation}'. Expected a form like '90 FR 29498'."
         )
     return int(m.group("volume")), int(m.group("page"))
 

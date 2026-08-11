@@ -62,7 +62,7 @@ TOOL_ARG_OVERRIDES = {
     "cfr_history": {"citation": "43 CFR 46.215"},
     "cfr_compare_versions": {"citation": "43 CFR 46.215", "date_a": "2020-01-01", "date_b": "2024-01-01"},
     "cfr_rulemaking": {"cfr_title": 43, "cfr_part": 46},
-    "cfr_resolve_fr_citation": {"citation": "88 FR 1"},
+    "cfr_resolve_fr_citation": {"citation": "90 FR 29498"},
     "cfr_resolve_executive_order": {"eo_number": 14008},
 }
 

@@ -65,18 +65,18 @@ def _disable_cache(api, monkeypatch):
     monkeypatch.setattr(api.time, "sleep", lambda *_a, **_k: None)
 
 
-# A small but realistic eCFR renderer HTML payload for a section with one
-# nested paragraph and a Federal Register citation link.
+# A representative eCFR renderer payload using a real current nested paragraph
+# and the current DOI Part 46 Federal Register source citation.
 SAMPLE_SECTION_HTML = """
-<h4 data-hierarchy-metadata='{"title":"43","part":"46"}'>&sect; 46.215 Categorical exclusions: Extraordinary circumstances.</h4>
-<p class="indent-0">Extraordinary circumstances are factors or circumstances in which a normally excluded action may have a significant environmental effect.</p>
-<div id="p-46.215(a)">
-  <p class="indent-1" data-title="46.215(a)">Significant impacts on public health or safety.</p>
-  <div id="p-46.215(a)(1)">
-    <p class="indent-2" data-title="46.215(a)(1)">Example nested paragraph for parser coverage.</p>
+<h4 data-hierarchy-metadata='{"title":"43","part":"46"}'>&sect; 46.205 Actions categorically excluded from further NEPA review.</h4>
+<p class="indent-0">Categorical Exclusion means a category of actions that a bureau has determined normally do not significantly affect the quality of the human environment.</p>
+<div id="p-46.205(c)">
+  <p class="indent-1" data-title="46.205(c)">DOI has provided for extraordinary circumstances in which a normally excluded action may have a significant environmental effect and require additional analysis.</p>
+  <div id="p-46.205(c)(1)">
+    <p class="indent-2" data-title="46.205(c)(1)">Any action that is normally categorically excluded must be evaluated to determine whether it meets any of the extraordinary circumstances in &sect; 46.215.</p>
   </div>
 </div>
-<p class="citation">[<a class="fr-reference" href="https://www.federalregister.gov/x" data-reference="85 FR 43304">85 FR 43304</a>, July 16, 2020]</p>
+<p class="citation">[<a class="fr-reference" href="https://www.federalregister.gov/citation/91-FR-8758" data-reference="91 FR 8758">91 FR 8758</a>, Feb. 24, 2026]</p>
 """
 
 
@@ -142,8 +142,8 @@ class TestParseCitation:
 class TestCitationDisplay:
     def test_display_section_with_path(self):
         api = _load_cfr_api()
-        cit = api.parse_cfr_citation("43 CFR 46.215(a)(1)")
-        assert cit.to_display() == "43 CFR 46.215(a)(1)"
+        cit = api.parse_cfr_citation("43 CFR 46.205(c)(1)")
+        assert cit.to_display() == "43 CFR 46.205(c)(1)"
 
     def test_display_part_only(self):
         api = _load_cfr_api()
@@ -164,11 +164,11 @@ class TestCitationDisplay:
 class TestParseFRCitation:
     def test_standard_form(self):
         api = _load_cfr_api()
-        assert api.parse_fr_citation("88 FR 3142") == (88, 3142)
+        assert api.parse_fr_citation("90 FR 29498") == (90, 29498)
 
     def test_fed_reg_form(self):
         api = _load_cfr_api()
-        assert api.parse_fr_citation("88 Fed. Reg. 3142") == (88, 3142)
+        assert api.parse_fr_citation("90 Fed. Reg. 29498") == (90, 29498)
 
     def test_empty_raises(self):
         api = _load_cfr_api()
@@ -196,23 +196,23 @@ class TestParseSectionHTML:
         parsed = api._parse_section_html(SAMPLE_SECTION_HTML)
         assert parsed is not None
         assert parsed["heading"].startswith("§")
-        assert "46.215" in parsed["heading"]
+        assert "46.205" in parsed["heading"]
         # One top-level paragraph with one nested child.
         paras = parsed["paragraphs"]
         assert len(paras) == 1
-        assert paras[0]["citation"] == "46.215(a)"
+        assert paras[0]["citation"] == "46.205(c)"
         assert paras[0]["depth"] == 1
-        assert paras[0]["children"][0]["citation"] == "46.215(a)(1)"
+        assert paras[0]["children"][0]["citation"] == "46.205(c)(1)"
 
     def test_preamble_captured(self):
         api = _load_cfr_api()
         parsed = api._parse_section_html(SAMPLE_SECTION_HTML)
-        assert "normally excluded action may have a significant environmental effect" in parsed["preamble"]
+        assert "normally do not significantly affect" in parsed["preamble"]
 
     def test_fr_citation_link_captured(self):
         api = _load_cfr_api()
         parsed = api._parse_section_html(SAMPLE_SECTION_HTML)
-        assert any(ref["text"] == "85 FR 43304" for ref in parsed.get("fr_citations", []))
+        assert any(ref["text"] == "91 FR 8758" for ref in parsed.get("fr_citations", []))
 
 
 # ---------------------------------------------------------------------------
@@ -260,27 +260,27 @@ class TestFindPartInStructure:
 class TestCorrelation:
     def test_exact_date_match(self):
         api = _load_cfr_api()
-        events = [{"date": "2023-01-05", "title": 43, "part": 46, "type": "rule"}]
+        events = [{"date": "2025-07-03", "title": 43, "part": 46, "type": "rule"}]
         docs = [
             {
-                "document_number": "2023-0001",
-                "publication_date": "2023-01-05",
-                "effective_on": "2023-01-05",
+                "document_number": "2025-12433",
+                "publication_date": "2025-07-03",
+                "effective_on": "2025-07-03",
                 "type": "RULE",
-                "citation": "88 FR 100",
+                "citation": "90 FR 29498",
                 "cfr_references": [{"title": 43, "part": 46}],
             }
         ]
         correlated = api.correlate_amendment_events_with_fr_documents(events, docs)
         assert len(correlated) == 1
         assert correlated[0]["match_confidence"] == "exact_date"
-        assert correlated[0]["fr_document"]["document_number"] == "2023-0001"
+        assert correlated[0]["fr_document"]["document_number"] == "2025-12433"
         assert correlated[0]["delta_days"] == 0
 
     def test_no_match_out_of_tolerance(self):
         api = _load_cfr_api()
-        events = [{"date": "2023-01-05", "title": 43, "part": 46}]
-        docs = [{"document_number": "x", "publication_date": "2022-01-01", "type": "RULE"}]
+        events = [{"date": "2025-07-03", "title": 43, "part": 46}]
+        docs = [{"document_number": "x", "publication_date": "2024-01-01", "type": "RULE"}]
         correlated = api.correlate_amendment_events_with_fr_documents(events, docs, tolerance_days=7)
         assert correlated[0]["fr_document"] is None
         assert correlated[0]["source_label"] == "[No FR Match]"

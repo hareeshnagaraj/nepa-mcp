@@ -200,7 +200,8 @@ async def get_monitors_by_box(
         param_codes: List of parameter codes to query
 
     Returns:
-        List of monitor records (deduplicated by site and pollutant)
+        List of monitor records (deduplicated by the AQS monitor identity:
+        state, county, site, parameter, and parameter occurrence code)
     """
     email, api_key = get_aqs_credentials()
     overall_start = time.time()
@@ -250,6 +251,7 @@ async def get_monitors_by_box(
                 monitor.get("county_code"),
                 monitor.get("site_number"),
                 monitor.get("parameter_code"),
+                monitor.get("poc"),
             )
 
             if monitor_id not in monitor_ids:
@@ -257,9 +259,7 @@ async def get_monitors_by_box(
                 all_monitors.append(monitor)
 
     overall_elapsed = time.time() - overall_start
-    logger.info(
-        f"[MONITORS] Completed in {overall_elapsed:.2f}s - found {len(all_monitors)} unique monitor-pollutant records"
-    )
+    logger.info(f"[MONITORS] Completed in {overall_elapsed:.2f}s - found {len(all_monitors)} unique monitors")
 
     return all_monitors
 
@@ -554,8 +554,10 @@ def format_monitors_summary(monitors: List[Dict], lat: float, lon: float, buffer
         for mon in mons[:5]:  # Show first 5
             site_name = mon.get("local_site_name") or "Unknown"
             site_id = f"{mon.get('state_code', '')}-{mon.get('county_code', '')}-{mon.get('site_number', '')}"
+            poc = mon.get("poc")
+            poc_display = f", POC: {poc}" if poc is not None else ""
             active_range = _monitor_active_range(mon)
-            summary += f"- **{site_name}** (ID: {site_id}, Active: {active_range})\n"
+            summary += f"- **{site_name}** (ID: {site_id}{poc_display}, Active: {active_range})\n"
 
         if len(mons) > 5:
             summary += f"- ... and {len(mons) - 5} more\n"
