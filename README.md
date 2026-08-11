@@ -312,13 +312,6 @@ contains the sponsorship, warranty, endorsement, and views disclaimer.
 
 ## Citation
 
-**Authors:** [Sarthak Chaturvedi](https://sarthakchat.github.io/),
-[Renuka Chintalapati](https://www.linkedin.com/in/renuka-chintalapati/),
-[Daniel Nally](https://www.pnnl.gov/people/dan-nally),
-[Mike Parker](https://www.pnnl.gov/people/mike-parker),
-[Sai Munikoti](https://www.pnnl.gov/people/sai-munikoti), and
-[Sameera Horawalavithana](https://www.pnnl.gov/people/sameera-horawalavithana).
-
 If you use NEPA MCP in research, environmental assessments, or other scientific
 or technical publications, please use the metadata in [`CITATION.cff`](https://github.com/pnnl-int/nepa-mcp-server/blob/main/CITATION.cff)
 or cite it as:
