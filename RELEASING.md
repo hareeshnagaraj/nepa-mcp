@@ -52,7 +52,7 @@ the first production upload.
    uv run --frozen pytest -q
    uv run --frozen pip-audit --progress-spinner off
    uv build --no-sources
-   uvx --from "twine==6.2.0" twine check dist/*
+   uvx --from "twine==7.0.0" twine check dist/*
    ```
 
 8. Merge the release pull request only after all required CI checks pass.
@@ -103,4 +103,3 @@ the first production upload.
 If a production artifact is defective, do not reuse or overwrite the version.
 Prepare a new patch release. Yank an existing release only when necessary and
 record the reason.
-

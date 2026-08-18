@@ -79,7 +79,7 @@ jobs:
         run: uv build --no-sources
 
       - name: Check distribution metadata
-        run: uvx --from "twine==6.2.0" twine check dist/*
+        run: uvx --from "twine==7.0.0" twine check dist/*
 
       - name: Install the built wheel
         run: |
