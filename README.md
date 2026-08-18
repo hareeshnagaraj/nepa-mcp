@@ -1,6 +1,6 @@
 <div align="center" style="text-align: center;">
 
-  <img src="docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI — NEPA MCP Toolkit™" width="740">
+  <img src="https://raw.githubusercontent.com/pnnl/nepa-mcp/main/docs/assets/permitai-nepa-mcp-toolkit-tm.svg" alt="PermitAI — NEPA MCP Toolkit™" width="740">
   <br>
 
   <p>
@@ -9,10 +9,10 @@
 
   <p>
   Works with<br>
-  <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="docs/assets/badges/codex-client-config.svg" height="20"></a>
-  <a href="#codex-plugin"><img alt="Codex plugin" src="docs/assets/badges/codex-plugin.svg" height="20"></a>
+  <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="https://raw.githubusercontent.com/pnnl/nepa-mcp/main/docs/assets/badges/codex-client-config.svg" height="20"></a>
+  <a href="#codex-plugin"><img alt="Codex plugin" src="https://raw.githubusercontent.com/pnnl/nepa-mcp/main/docs/assets/badges/codex-plugin.svg" height="20"></a>
   <a href="#configure-an-mcp-client"><img alt="Claude Code client configuration" src="https://img.shields.io/badge/Claude_Code-MCP_Client-D97757?style=flat-square&amp;logo=anthropic&amp;logoColor=white" height="20"></a>
-  <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="docs/assets/badges/vscode-mcp-client.svg" height="20"></a>
+  <a href="#configure-an-mcp-client"><img alt="VS Code client configuration" src="https://raw.githubusercontent.com/pnnl/nepa-mcp/main/docs/assets/badges/vscode-mcp-client.svg" height="20"></a>
   </p>
 
   <p>
@@ -42,7 +42,8 @@ public GIS services from eight federal data publishers at request time. It can
 compose selected results into an interactive map or a provenance-rich GeoJSON
 export.
 
-> [!IMPORTANT]
+> **Important**
+>
 > NEPA MCP is a screening and research aid. It does not make legal or agency
 > determinations, replace consultation with agencies or Tribes, or guarantee
 > that an upstream dataset is complete or current. Confirm material findings
@@ -139,7 +140,7 @@ partial, and failed layer counts so source coverage remains visible.
 
 <p align="center">
   <a href="https://github.com/pnnl/nepa-mcp/blob/main/docs/map-composer.md">
-    <img src="docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 20-mile Chesapeake Bay watershed project area with 12 overlays visible" width="900">
+    <img src="https://raw.githubusercontent.com/pnnl/nepa-mcp/main/docs/assets/map-composer-washington-dc-chesapeake.png" alt="Interactive Map Composer view of a 20-mile Chesapeake Bay watershed project area with 12 overlays visible" width="900">
   </a>
 </p>
 
@@ -269,7 +270,8 @@ and contributing dataset publishers
 · [USDA Forest Service](https://www.fs.usda.gov/)
 · [U.S. Geological Survey](https://www.usgs.gov/)
 
-> [!NOTE]
+> **Note**
+>
 > Agency and publisher names identify upstream data provenance only. NEPA MCP
 > is an independent project and is not affiliated with, sponsored by, or
 > endorsed by these organizations.
@@ -321,7 +323,7 @@ or cite it as:
   year         = {2026},
   institution  = {Pacific Northwest National Laboratory},
   url          = {https://github.com/pnnl/nepa-mcp},
-  version      = {0.1.0rc1},
+  version      = {0.1.0rc2},
   license      = {BSD-3-Clause}
 }
 ```
