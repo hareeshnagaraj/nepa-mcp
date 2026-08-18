@@ -129,9 +129,12 @@ Unrelated MCP entries are preserved, and an existing file receives a one-time
 
 The repository contains a local Codex marketplace and a `nepa-mcp` plugin. The
 plugin registers all 19 servers and includes the `nepa-screening` skill.
-After installing the Python runtime, run:
+After installing the Python runtime from PyPI, clone the repository and add its
+marketplace:
 
 ```bash
+git clone https://github.com/pnnl/nepa-mcp.git
+cd nepa-mcp
 codex plugin marketplace add "$(pwd)"
 codex plugin add nepa-mcp@nepa-mcp-local
 ```
