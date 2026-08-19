@@ -60,28 +60,18 @@ Install the stable package from PyPI:
 
 ```bash
 pipx install nepa-mcp
+pipx ensurepath
 ```
 
-Verify the installation and list the available domains:
+If `pipx ensurepath` reports a change, reopen the terminal before continuing.
+If pipx selects a Python version older than 3.12, repeat the installation with
+`pipx install --python 3.12 nepa-mcp`.
+
+Verify the installation and list the available servers:
 
 ```bash
 nepa-mcp doctor
 nepa-mcp list-servers
-```
-
-Start an individual server over stdio:
-
-```bash
-nepa-mcp server ipac
-nepa-mcp server cfr
-```
-
-Individual servers are the recommended pattern for MCP clients. An aggregate
-proxy is also available for testing or workflows that deliberately want every
-tool behind one connection:
-
-```bash
-nepa-mcp server all
 ```
 
 Upgrade an existing PyPI installation:
@@ -90,46 +80,36 @@ Upgrade an existing PyPI installation:
 pipx upgrade nepa-mcp
 ```
 
-### Install from source
-
-For development or unreleased changes, clone the repository and install the
-current checkout:
-
-```bash
-git clone https://github.com/pnnl/nepa-mcp.git
-cd nepa-mcp
-pipx install .
-```
-
-If `nepa-mcp` is already installed, replace it with the current checkout:
-
-```bash
-pipx install --force .
-```
-
 ## Configure an MCP Client
 
-The repository includes examples for Claude Code (`.mcp.json`), VS Code
-(`.vscode/mcp.json`), and Codex (`config.template.toml`). Each example registers
-the 19 capabilities as separate MCP servers.
+> **Before continuing:** For Claude Code or VS Code, confirm that the terminal
+> is open in the project or workspace you intend to configure. The configuration
+> file will be created or updated there.
 
-The CLI can merge those entries into an existing client configuration:
+| Client | Recommended setup |
+|---|---|
+| Claude Code | `nepa-mcp configure claude` |
+| VS Code | `nepa-mcp configure vscode` |
+| Codex CLI | `nepa-mcp configure codex` |
+| Codex Desktop | [Install the Codex plugin](#codex-plugin) |
 
-```bash
-nepa-mcp configure claude
-nepa-mcp configure vscode
-nepa-mcp configure codex
-```
-
-Use `--dry-run` to preview the result or `--path` to choose a different file.
-Unrelated MCP entries are preserved, and an existing file receives a one-time
-`.nepa-mcp.bak` backup.
+Restart or reload the selected client after configuring it; for Codex, start a
+new task.
 
 ## Codex Plugin
 
-The repository contains a Codex marketplace and a `nepa-mcp` plugin. The plugin
-registers all 19 servers and includes the `nepa-screening` skill. Install the
-Python runtime from PyPI first, then add the marketplace in Codex Desktop:
+The Codex plugin registers all 19 servers and includes the `nepa-screening`
+skill. If you use the plugin, do not also run `nepa-mcp configure codex`.
+
+Install and verify the Python runtime before adding the plugin:
+
+```bash
+pipx install nepa-mcp
+nepa-mcp doctor
+```
+
+`doctor` should report `Installed servers: 19`. Then add the marketplace in
+Codex Desktop:
 
 1. Open **Plugins** and select **Add plugin marketplace**.
 2. Enter `pnnl/nepa-mcp` for **Source** and `v0.1.0` for **Git ref**.
@@ -143,8 +123,8 @@ codex plugin marketplace add pnnl/nepa-mcp --ref v0.1.0
 codex plugin add nepa-mcp@nepa-mcp-local
 ```
 
-Start a new Codex task after installing or updating the plugin so the new MCP
-tools and skill are loaded.
+Start a new Codex task after installing the plugin so the new MCP tools and
+skill are loaded.
 
 ## Map Composer
 
@@ -173,8 +153,8 @@ complete 32-layer catalog, output behavior, provenance, and artifact storage.
 
 ## Credentials
 
-Most servers use public APIs without credentials. Two integrations support
-optional credentials:
+Credentials are not required to install NEPA MCP or use the other 17 servers.
+The Census and EPA AQS servers require credentials before they can return data:
 
 | Server | Environment variables |
 |---|---|
@@ -184,7 +164,7 @@ optional credentials:
 Set the variables in the shell or create a private per-user credential file:
 
 ```bash
-nepa-mcp configure
+nepa-mcp configure credentials
 nepa-mcp doctor
 ```
 
