@@ -32,6 +32,9 @@
       "Create an interactive environmental map for a project area.",
       "Research current environmental regulatory context."
     ],
-    "brandColor": "#256D5A"
+    "brandColor": "#256D5A",
+    "composerIcon": "./assets/nepa-mcp-icon.svg",
+    "logo": "./assets/nepa-mcp-icon.svg",
+    "logoDark": "./assets/nepa-mcp-icon.svg"
   }
 }
