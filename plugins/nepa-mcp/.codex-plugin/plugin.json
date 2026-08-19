@@ -5,6 +5,7 @@
   "author": {
     "name": "NEPA-MCP maintainers"
   },
+  "homepage": "https://pnnl.github.io/nepa-mcp/",
   "keywords": [
     "nepa",
     "environmental-review",
@@ -24,6 +25,7 @@
       "Environmental data",
       "Interactive maps"
     ],
+    "websiteURL": "https://pnnl.github.io/nepa-mcp/",
     "defaultPrompt": [
       "Screen a project area for NEPA resources.",
       "Identify environmental datasets for a project ROI.",

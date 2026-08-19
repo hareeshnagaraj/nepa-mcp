@@ -180,6 +180,8 @@ def test_plugin_and_marketplace_register_independent_servers() -> None:
 
     assert manifest["name"] == "nepa-mcp"
     assert manifest["version"] == project["version"]
+    assert manifest["homepage"] == project["urls"]["Documentation"]
+    assert manifest["interface"]["websiteURL"] == project["urls"]["Documentation"]
     assert manifest["mcpServers"] == "./.mcp.json"
     assert manifest["skills"] == "./skills/"
     assert set(mcp_config["mcpServers"]) == EXPECTED_SERVERS
