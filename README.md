@@ -80,6 +80,17 @@ Upgrade an existing PyPI installation:
 pipx upgrade nepa-mcp
 ```
 
+If `pipx upgrade` keeps an older version that was originally installed from a
+local checkout or Git URL, replace that pipx environment with the current PyPI
+release:
+
+```bash
+pipx install --force nepa-mcp
+nepa-mcp doctor
+```
+
+This leaves the separate per-user NEPA MCP credential file unchanged.
+
 ## Configure an MCP Client
 
 > **Before continuing:** For Claude Code or VS Code, confirm that the terminal
