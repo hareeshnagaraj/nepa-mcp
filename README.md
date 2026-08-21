@@ -8,6 +8,10 @@
   </p>
 
   <p>
+  <a href="https://pypi.org/project/nepa-mcp/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/nepa-mcp?style=flat-square&amp;logo=pypi&amp;logoColor=white&amp;label=PyPI&amp;color=3775A9" height="20"></a>
+  </p>
+
+  <p>
   Works with<br>
   <a href="#configure-an-mcp-client"><img alt="Codex MCP client" src="https://raw.githubusercontent.com/pnnl/nepa-mcp/v0.1.1/docs/assets/badges/codex-client-config.svg" height="20"></a>
   <a href="#codex-plugin"><img alt="Codex plugin" src="https://raw.githubusercontent.com/pnnl/nepa-mcp/v0.1.1/docs/assets/badges/codex-plugin.svg" height="20"></a>
