@@ -1,9 +1,10 @@
 """
 PADUS (Protected Areas Database of the United States) protected-area utilities.
 
-This module provides access to USGS PAD-US protected area ownership and management
-records. PAD-US is not a cadastral ownership source and should not be treated as
-complete private land ownership coverage.
+This module provides access to USGS PAD-US protected-area records, covering fee
+ownership, designations, easements, marine, and proclamation boundaries. PAD-US is
+not a cadastral ownership source and should not be treated as complete private land
+ownership coverage.
 
 API Documentation: https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview
 """
@@ -15,13 +16,22 @@ from typing import Dict
 from nepa_mcp_common.arcgis import ArcGISService
 
 # PADUS 4.1 MapServer endpoints (National Map)
-PADUS_BASE_URL = "https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US_4_1/MapServer"
+PADUS_BASE_URL = "https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US_gaz_combined/MapServer"
+PADUS_COMBINED_LAYER = 0  # PADUS4_1Combined layer: Fee, Designation, Easement, Marine, Proclamation
+
+# Retained for callers that still reference the fee-only service.
+PADUS_FEE_BASE_URL = "https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US_4_1/MapServer"
 PADUS_FEE_LAYER = 0  # PADUS4_1Fee layer
 
 
 def get_padus_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> Dict:
     """
-    Query PADUS protected-area ownership records within a Region of Interest.
+    Query PADUS protected-area records within a Region of Interest.
+
+    Uses the PAD-US Combined layer, which carries designation records such as
+    Wilderness Study Areas, National Conservation Areas, and designated Wilderness
+    alongside fee ownership. Designation status carries management standards that
+    fee ownership alone does not express.
 
     Args:
         lat: Latitude in decimal degrees (WGS84)
@@ -33,17 +43,17 @@ def get_padus_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> Dict
         - center: Query center point
         - buffer_miles: Buffer distance
         - total_records: Number of PAD-US records found
-        - records: List of protected-area ownership/management records
+        - records: List of protected-area ownership, management, and designation records
     """
     buffer_geom = ArcGISService.create_roi_buffer(lat, lon, buffer_miles)
 
     result = ArcGISService.query_features(
         PADUS_BASE_URL,
-        PADUS_FEE_LAYER,
+        PADUS_COMBINED_LAYER,
         buffer_geom,
         out_fields="Own_Type,Own_Name,Mang_Type,Mang_Name,Des_Tp,Unit_Nm,State_Nm,GIS_Acres,GAP_Sts,IUCN_Cat,Date_Est",
         timeout=30,
-        service_name="USGS PAD-US Fee layer",
+        service_name="USGS PAD-US Combined layer",
     )
 
     records = []
