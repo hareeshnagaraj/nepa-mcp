@@ -57,6 +57,7 @@ export.
 - [`pipx`](https://pipx.pypa.io/) for an isolated installation
 
 Install the stable package from PyPI:
+<a href="https://pypi.org/project/nepa-mcp/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/nepa-mcp?style=flat-square&amp;logo=pypi&amp;logoColor=white&amp;label=PyPI&amp;color=3775A9" height="20"></a>
 
 ```bash
 pipx install nepa-mcp
