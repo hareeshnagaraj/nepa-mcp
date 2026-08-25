@@ -2,10 +2,9 @@
 Performance / scaling tests for the EPA ACRES API layer.
 
 These are hermetic (ArcGIS mocked) and assert algorithmic behavior at larger
-synthetic feature counts: parsing and sorting stay bounded in time, and the
-100-record listing cap keeps formatter output size flat no matter how many
-properties a dense metro ROI returns. They do not hit the network, so they
-are deterministic in CI.
+synthetic feature counts: parsing and sorting stay bounded in time, and
+100-record pages keep formatter output size bounded while retaining complete
+aggregate counts. They do not hit the network, so they are deterministic in CI.
 """
 
 from __future__ import annotations
@@ -100,9 +99,7 @@ class TestParsingThroughput:
 
 class TestListingCapScaling:
     def test_output_size_stays_flat_as_totals_grow(self, monkeypatch):
-        """The listing cap bounds output size: a 10x larger result set must not
-        produce a 10x larger summary, only the same capped listing plus exact
-        counts."""
+        """Pagination bounds output while preserving exact aggregate counts."""
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
 
@@ -117,9 +114,9 @@ class TestListingCapScaling:
             result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
             outputs[count] = api.format_epa_acres_summary(result)
 
-        assert f"Listing the first {api.MAX_LISTED_PROPERTIES} of 500 properties" in outputs[500]
-        assert f"Listing the first {api.MAX_LISTED_PROPERTIES} of 5000 properties" in outputs[5000]
-        assert outputs[500].count("- **") == api.MAX_LISTED_PROPERTIES
-        assert outputs[5000].count("- **") == api.MAX_LISTED_PROPERTIES
-        # Same capped listing either way; only the counts differ.
+        assert f"Property Details (1–{api.MAX_PAGE_SIZE} of 500)" in outputs[500]
+        assert f"Property Details (1–{api.MAX_PAGE_SIZE} of 5000)" in outputs[5000]
+        assert outputs[500].count("- **SITE") == api.MAX_PAGE_SIZE
+        assert outputs[5000].count("- **SITE") == api.MAX_PAGE_SIZE
+        # Same bounded detail page either way; only aggregate counts differ.
         assert abs(len(outputs[5000]) - len(outputs[500])) < 500

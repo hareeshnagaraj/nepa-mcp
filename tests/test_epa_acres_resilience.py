@@ -64,7 +64,8 @@ class TestQueryFailure:
         assert result["total"] == 0
         assert result["properties"] == []
         assert result["data_unavailable"] is True
-        assert "EPA ArcGIS 500" in result["error"]
+        assert result["error"] == "EPA ACRES Brownfields data were unavailable for this request."
+        assert "EPA ArcGIS 500" not in result["error"]
         assert any("not a no-hit finding" in w for w in result["warnings"])
 
     def test_formatter_renders_unavailable_banner_without_no_hit_text(self, monkeypatch):
@@ -130,7 +131,7 @@ class TestDegradedButUsable:
 
 
 class TestMalformedFeatures:
-    def test_feature_without_attributes_key(self, monkeypatch):
+    def test_feature_without_attributes_is_not_reported_as_a_property(self, monkeypatch):
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
         monkeypatch.setattr(
@@ -139,29 +140,25 @@ class TestMalformedFeatures:
             lambda *_a, **_k: ArcGISFeatureQueryResult(features=[{}], warnings=[]),
         )
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
-        # A feature with no attributes still parses to an "Unknown" property.
-        assert result["total"] == 1
-        assert result["properties"][0]["name"] == "Unknown"
+        assert result["total"] == 0
+        assert result["properties"] == []
+        assert result["data_unavailable"] is True
+        assert any("skipped 1 malformed" in warning for warning in result["warnings"])
 
-    def test_null_attribute_values_do_not_crash(self, monkeypatch):
+    def test_null_attributes_do_not_crash_or_create_a_false_record(self, monkeypatch):
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
         monkeypatch.setattr(
             api.ArcGISService,
             "query_features",
-            lambda *_a, **_k: ArcGISFeatureQueryResult(
-                features=[{"attributes": {"primary_name": None, "state_code": None, "latitude": None}}],
-                warnings=[],
-            ),
+            lambda *_a, **_k: ArcGISFeatureQueryResult(features=[{"attributes": None}], warnings=[]),
         )
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
-        assert result["total"] == 1
-        prop = result["properties"][0]
-        assert prop["name"] == "Unknown"
-        assert prop["state"] == ""
-        assert prop["latitude"] is None
+        assert result["total"] == 0
+        assert result["data_unavailable"] is True
+        assert result["error"] == "EPA ACRES returned no usable property records."
 
-    def test_null_features_list_degrades_to_empty(self, monkeypatch):
+    def test_null_features_list_is_unavailable_not_a_no_hit(self, monkeypatch):
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
         monkeypatch.setattr(
@@ -172,6 +169,35 @@ class TestMalformedFeatures:
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
         assert result["total"] == 0
         assert result["properties"] == []
+        assert result["data_unavailable"] is True
+        assert any("malformed feature data" in warning for warning in result["warnings"])
+
+    def test_malformed_feature_is_skipped_and_marks_mixed_results_partial(self, monkeypatch):
+        api = _load_acres_api()
+        _patch_roi(api, monkeypatch)
+        monkeypatch.setattr(
+            api.ArcGISService,
+            "query_features",
+            lambda *_a, **_k: ArcGISFeatureQueryResult(
+                features=[
+                    {"attributes": None},
+                    {
+                        "attributes": {
+                            "registry_id": "110038700607",
+                            "primary_name": "VALID SITE",
+                            "state_code": "PA",
+                        }
+                    },
+                ],
+                warnings=[],
+            ),
+        )
+        result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
+        assert result["total"] == 1
+        assert result["properties"][0]["name"] == "VALID SITE"
+        assert result["partial"] is True
+        assert result["skipped_features"] == 1
+        assert any("returned records are partial" in warning for warning in result["warnings"])
 
 
 class TestBufferCreationFailure:
@@ -188,6 +214,7 @@ class TestBufferCreationFailure:
 
         monkeypatch.setattr(api.ArcGISService, "query_features", should_not_run)
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
-        assert result["error"] == "geometry service down"
+        assert result["error"] == "ArcGIS GeometryServer was unavailable for this request."
+        assert "geometry service down" not in result["error"]
         assert result["total"] == 0
         assert result["data_unavailable"] is True

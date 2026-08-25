@@ -14,6 +14,8 @@ Data source: EPA Envirofacts Brownfields ArcGIS layer
 from __future__ import annotations
 
 import logging
+import math
+from collections import Counter
 from typing import Dict
 
 from nepa_mcp_common.arcgis import ArcGISService
@@ -28,8 +30,15 @@ _OUT_FIELDS = (
     "epa_region,postal_code,latitude,longitude,pgm_sys_id,facility_url"
 )
 
-# Cap the per-property detail listing so dense metro ROIs stay readable.
-MAX_LISTED_PROPERTIES = 100
+# Cap each result page so dense metro ROIs stay readable. Callers can retrieve
+# later records with ``result_offset`` instead of losing them from the response.
+MAX_PAGE_SIZE = 100
+MAX_RESULT_OFFSET = ArcGISService.DEFAULT_MAX_FEATURES - 1
+
+# Keep the complete request budget below the MCP tool's 60-second timeout:
+# GeometryServer (20s) + two EPA attempts (12s each) + retry backoff.
+ACRES_QUERY_TIMEOUT_SECONDS = 12
+ACRES_QUERY_MAX_ATTEMPTS = 2
 
 
 def get_epa_acres_properties_in_roi(lat: float, lon: float, buffer_miles: float = 25.0) -> Dict:
@@ -52,8 +61,10 @@ def get_epa_acres_properties_in_roi(lat: float, lon: float, buffer_miles: float 
             - buffer_miles: float
             - total: int
             - properties: list of property dicts
+            - counts_by_state: counts across all usable returned records
             - warnings: list of upstream warnings
             - truncated: bool (upstream feature cap reached; results are partial)
+            - partial: bool (upstream cap reached or malformed features skipped)
             - data_unavailable: bool (only present when buffering or querying failed)
             - error: str (only present when buffering or querying failed)
     """
@@ -69,10 +80,12 @@ def get_epa_acres_properties_in_roi(lat: float, lon: float, buffer_miles: float 
             **base,
             "total": 0,
             "properties": [],
+            "counts_by_state": {},
             "warnings": [],
             "truncated": False,
+            "partial": False,
             "data_unavailable": True,
-            "error": str(e),
+            "error": "ArcGIS GeometryServer was unavailable for this request.",
         }
 
     try:
@@ -81,7 +94,8 @@ def get_epa_acres_properties_in_roi(lat: float, lon: float, buffer_miles: float 
             ACRES_BROWNFIELDS_LAYER_ID,
             buffer_geom,
             out_fields=_OUT_FIELDS,
-            timeout=30,
+            timeout=ACRES_QUERY_TIMEOUT_SECONDS,
+            max_attempts=ACRES_QUERY_MAX_ATTEMPTS,
             service_name="EPA ACRES Brownfields layer",
         )
     except Exception as e:
@@ -93,55 +107,143 @@ def get_epa_acres_properties_in_roi(lat: float, lon: float, buffer_miles: float 
             **base,
             "total": 0,
             "properties": [],
+            "counts_by_state": {},
             "warnings": ["EPA ACRES Brownfields layer query failed; results are unavailable, not a no-hit finding."],
             "truncated": False,
+            "partial": False,
             "data_unavailable": True,
-            "error": f"ACRES data unavailable: {e}",
+            "error": "EPA ACRES Brownfields data were unavailable for this request.",
         }
 
     properties = []
-    # `or []` guards against a query result whose features are null rather than
-    # an empty list, so a null-features response degrades gracefully instead of
-    # raising TypeError.
-    for feature in result.features or []:
-        attrs = feature.get("attributes", {})
+    warnings = list(result.warnings)
+    if not isinstance(result.features, list):
+        return {
+            **base,
+            "total": 0,
+            "properties": [],
+            "counts_by_state": {},
+            "warnings": [*warnings, "EPA ACRES returned malformed feature data; results are unavailable."],
+            "truncated": result.truncated,
+            "partial": True,
+            "data_unavailable": True,
+            "error": "EPA ACRES returned malformed feature data.",
+        }
+
+    skipped_features = 0
+    for feature in result.features:
+        if not isinstance(feature, dict):
+            skipped_features += 1
+            continue
+        attrs = feature.get("attributes")
+        if not isinstance(attrs, dict) or not any(
+            attrs.get(field) for field in ("registry_id", "pgm_sys_id", "primary_name")
+        ):
+            skipped_features += 1
+            continue
+
+        property_latitude = _coerce_coordinate(attrs.get("latitude"), minimum=-90, maximum=90)
+        property_longitude = _coerce_coordinate(attrs.get("longitude"), minimum=-180, maximum=180)
+        distance_miles = None
+        if property_latitude is not None and property_longitude is not None:
+            distance_miles = round(_distance_miles(lat, lon, property_latitude, property_longitude), 3)
+
         properties.append(
             {
-                "name": attrs.get("primary_name") or "Unknown",
-                "address": attrs.get("location_address") or "",
-                "city": attrs.get("city_name") or "",
-                "county": attrs.get("county_name") or "",
-                "state": attrs.get("state_code") or "",
-                "zip": attrs.get("postal_code") or "",
-                "epa_region": attrs.get("epa_region") or "",
-                "frs_registry_id": attrs.get("registry_id") or "",
-                "acres_property_id": attrs.get("pgm_sys_id") or "",
-                "latitude": _coerce_coordinate(attrs.get("latitude")),
-                "longitude": _coerce_coordinate(attrs.get("longitude")),
-                "facility_url": attrs.get("facility_url") or "",
+                "name": _coerce_text(attrs.get("primary_name"), default="Unknown"),
+                "address": _coerce_text(attrs.get("location_address")),
+                "city": _coerce_text(attrs.get("city_name")),
+                "county": _coerce_text(attrs.get("county_name")),
+                "state": _coerce_text(attrs.get("state_code")),
+                "zip": _coerce_text(attrs.get("postal_code")),
+                "epa_region": _coerce_text(attrs.get("epa_region")),
+                "frs_registry_id": _coerce_text(attrs.get("registry_id")),
+                "acres_property_id": _coerce_text(attrs.get("pgm_sys_id")),
+                "latitude": property_latitude,
+                "longitude": property_longitude,
+                "distance_miles": distance_miles,
+                "facility_url": _coerce_text(attrs.get("facility_url")),
             }
         )
 
-    properties.sort(key=lambda p: (p["state"], p["city"], p["name"]))
+    if skipped_features:
+        warnings.append(
+            f"EPA ACRES skipped {skipped_features} malformed or unidentifiable feature"
+            f"{'s' if skipped_features != 1 else ''}; returned records are partial."
+        )
+
+    properties.sort(
+        key=lambda p: (
+            p["distance_miles"] is None,
+            p["distance_miles"] if p["distance_miles"] is not None else math.inf,
+            p["state"].casefold(),
+            p["city"].casefold(),
+            p["name"].casefold(),
+            p["acres_property_id"],
+        )
+    )
+    counts_by_state = dict(sorted(Counter((prop["state"] or "Unknown") for prop in properties).items()))
+
+    if skipped_features and not properties:
+        return {
+            **base,
+            "total": 0,
+            "properties": [],
+            "counts_by_state": {},
+            "warnings": warnings,
+            "truncated": result.truncated,
+            "partial": True,
+            "data_unavailable": True,
+            "error": "EPA ACRES returned no usable property records.",
+        }
 
     return {
         **base,
         "total": len(properties),
         "properties": properties,
-        "warnings": list(result.warnings),
+        "counts_by_state": counts_by_state,
+        "warnings": warnings,
         "truncated": result.truncated,
+        "partial": result.truncated or bool(skipped_features),
+        "skipped_features": skipped_features,
     }
 
 
-def _coerce_coordinate(value) -> float | None:
+def _coerce_text(value, *, default: str = "") -> str:
+    """Return a stripped string while preserving useful numeric identifiers."""
+    if value is None:
+        return default
+    text = str(value).strip()
+    return text or default
+
+
+def _coerce_coordinate(value, *, minimum: float, maximum: float) -> float | None:
     """Return an attribute coordinate as a float, or None when absent or invalid."""
     try:
-        return float(value)
+        coordinate = float(value)
     except (TypeError, ValueError):
         return None
+    if not math.isfinite(coordinate) or not minimum <= coordinate <= maximum:
+        return None
+    return coordinate
 
 
-def format_epa_acres_summary(result: Dict) -> str:
+def _distance_miles(lat_a: float, lon_a: float, lat_b: float, lon_b: float) -> float:
+    """Return great-circle distance between two WGS84 points in statute miles."""
+    lat_a_rad = math.radians(lat_a)
+    lat_b_rad = math.radians(lat_b)
+    delta_lat = math.radians(lat_b - lat_a)
+    delta_lon = math.radians(lon_b - lon_a)
+    haversine = math.sin(delta_lat / 2) ** 2 + math.cos(lat_a_rad) * math.cos(lat_b_rad) * math.sin(delta_lon / 2) ** 2
+    return 3958.7613 * 2 * math.asin(min(1.0, math.sqrt(haversine)))
+
+
+def format_epa_acres_summary(
+    result: Dict,
+    *,
+    max_results: int = MAX_PAGE_SIZE,
+    result_offset: int = 0,
+) -> str:
     """
     Format ACRES query results as a markdown summary for Brownfields screening.
 
@@ -157,12 +259,15 @@ def format_epa_acres_summary(result: Dict) -> str:
     buffer_miles = result.get("buffer_miles", 0)
     properties = result.get("properties", [])
     total = result.get("total", 0)
+    page_end = min(result_offset + max_results, total)
+    page_properties = properties[result_offset:page_end]
+    total_label = "Returned ACRES Properties" if result.get("truncated") else "Total ACRES Properties"
     lines = [
         "## EPA ACRES Brownfields Properties",
         "",
         f"**Location:** ({lat}, {lon})",
         f"**Buffer:** {buffer_miles} miles",
-        f"**Total ACRES Properties:** {total}",
+        f"**{total_label}:** {total}",
         "",
     ]
 
@@ -189,29 +294,50 @@ def format_epa_acres_summary(result: Dict) -> str:
                 "",
             ]
     else:
-        # Group by state for readability
+        counts_by_state = result.get("counts_by_state") or dict(
+            sorted(Counter((prop.get("state") or "Unknown") for prop in properties).items())
+        )
+        lines += ["### Properties by State", ""]
+        for state, count in counts_by_state.items():
+            property_label = "property" if count == 1 else "properties"
+            lines.append(f"- **{state}:** {count} {property_label}")
+        lines.append("")
+
+        if not page_properties:
+            lines += [
+                f"No records are available at result_offset={result_offset}. "
+                f"This query returned {total} usable properties.",
+                "",
+            ]
+        else:
+            lines += [
+                f"### Property Details ({result_offset + 1}–{page_end} of {total})",
+                "",
+            ]
+
+        # Group this page by state for readability.
         by_state: Dict[str, list] = {}
-        for prop in properties:
+        for prop in page_properties:
             state = prop.get("state") or "Unknown"
             by_state.setdefault(state, []).append(prop)
 
-        listed = 0
         for state, state_props in sorted(by_state.items()):
-            if listed >= MAX_LISTED_PROPERTIES:
-                break
-            property_label = "property" if len(state_props) == 1 else "properties"
-            lines += [f"### {state} ({len(state_props)} {property_label})", ""]
+            property_label = "property shown" if len(state_props) == 1 else "properties shown"
+            lines += [f"#### {state} ({len(state_props)} {property_label})", ""]
             for prop in state_props:
-                if listed >= MAX_LISTED_PROPERTIES:
-                    break
                 lines.append(_format_property_line(prop))
-                listed += 1
             lines.append("")
 
-        if total > MAX_LISTED_PROPERTIES:
+        if page_end < total:
             lines += [
-                f"Listing the first {MAX_LISTED_PROPERTIES} of {total} properties (sorted by state, "
-                "city, and property name). Reduce buffer_miles for a complete listing.",
+                f"More records are available. Call this tool again with result_offset={page_end} "
+                f"and max_results={max_results} to continue the nearest-first listing.",
+                "",
+            ]
+
+        if result.get("truncated"):
+            lines += [
+                "The returned count is a lower bound because the upstream 10,000-feature safety cap was reached.",
                 "",
             ]
 
@@ -252,4 +378,6 @@ def _format_property_line(prop: Dict) -> str:
         line += f" — {details}"
     if prop.get("facility_url"):
         line += f" — [EPA property record]({prop['facility_url']})"
+    if prop.get("distance_miles") is not None:
+        line += f" — {prop['distance_miles']:.3f} mi from center"
     return line

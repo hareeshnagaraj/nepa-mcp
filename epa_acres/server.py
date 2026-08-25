@@ -24,6 +24,8 @@ from pydantic import Field
 from fastmcp import FastMCP
 
 from src.apis.acres_api import (
+    MAX_PAGE_SIZE,
+    MAX_RESULT_OFFSET,
     get_epa_acres_properties_in_roi,
     format_epa_acres_summary,
 )
@@ -66,6 +68,22 @@ BufferMiles = Annotated[
         description="Buffer distance in miles, valid range 0.1 to 100.0.",
     ),
 ]
+MaxResults = Annotated[
+    int,
+    Field(
+        ge=1,
+        le=MAX_PAGE_SIZE,
+        description="Maximum property records to return, valid range 1 to 100 (default: 100).",
+    ),
+]
+ResultOffset = Annotated[
+    int,
+    Field(
+        ge=0,
+        le=MAX_RESULT_OFFSET,
+        description="Zero-based offset into the nearest-first property list, valid range 0 to 9999 (default: 0).",
+    ),
+]
 
 
 def _validate_geo_inputs(
@@ -93,9 +111,29 @@ def _validate_geo_inputs(
     return lat, lon, distance
 
 
+def _validate_result_window(max_results: int, result_offset: int) -> tuple[int, int]:
+    """Validate pagination arguments before any upstream calls."""
+    try:
+        limit = int(max_results)
+        offset = int(result_offset)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("max_results and result_offset must be integers") from exc
+
+    if not 1 <= limit <= MAX_PAGE_SIZE:
+        raise ValueError(f"max_results must be between 1 and {MAX_PAGE_SIZE}, got {max_results}")
+    if not 0 <= offset <= MAX_RESULT_OFFSET:
+        raise ValueError(f"result_offset must be between 0 and {MAX_RESULT_OFFSET}, got {result_offset}")
+
+    return limit, offset
+
+
 @mcp.tool(name="get_epa_acres_properties_in_roi", annotations=READ_ONLY_TOOL_ANNOTATIONS, timeout=60.0)
 def get_epa_acres_properties_in_roi_tool(
-    latitude: Latitude, longitude: Longitude, buffer_miles: BufferMiles = 25.0
+    latitude: Latitude,
+    longitude: Longitude,
+    buffer_miles: BufferMiles = 25.0,
+    max_results: MaxResults = MAX_PAGE_SIZE,
+    result_offset: ResultOffset = 0,
 ) -> str:
     """Query EPA ACRES Brownfields property records within a region of interest.
 
@@ -109,14 +147,17 @@ def get_epa_acres_properties_in_roi_tool(
         latitude: Latitude in decimal degrees (WGS84), valid range -90 to 90.
         longitude: Longitude in decimal degrees (WGS84), valid range -180 to 180.
         buffer_miles: Buffer distance in miles, valid range 0.1 to 100.0 (default: 25).
+        max_results: Maximum records in this response, valid range 1 to 100 (default: 100).
+        result_offset: Zero-based offset into records sorted nearest-first (default: 0).
 
     Returns:
         Markdown summary of ACRES Brownfields properties within the ROI.
     """
     latitude, longitude, buffer_miles = _validate_geo_inputs(latitude, longitude, buffer_miles)
+    max_results, result_offset = _validate_result_window(max_results, result_offset)
     logger.info("Querying EPA ACRES for (%s, %s) with buffer %s mi", latitude, longitude, buffer_miles)
     result = get_epa_acres_properties_in_roi(latitude, longitude, buffer_miles)
-    return format_epa_acres_summary(result)
+    return format_epa_acres_summary(result, max_results=max_results, result_offset=result_offset)
 
 
 if __name__ == "__main__":

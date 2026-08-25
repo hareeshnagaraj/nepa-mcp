@@ -35,7 +35,7 @@ def _load_server():
 
 
 class TestInputValidation:
-    """The module-level _validate_geo_inputs is the single validation choke point."""
+    """Module-level validation rejects unsafe inputs before upstream calls."""
 
     def test_latitude_above_range_rejected(self):
         module = _load_server()
@@ -91,6 +91,19 @@ class TestInputValidation:
         module = _load_server()
         assert module._validate_geo_inputs(90.0, 180.0, 0.1)[0] == 90.0
         assert module._validate_geo_inputs(-90.0, -180.0, 100.0)[0] == -90.0
+
+    def test_result_window_bounds(self):
+        module = _load_server()
+        assert module._validate_result_window(1, 0) == (1, 0)
+        assert module._validate_result_window(100, 9999) == (100, 9999)
+        with pytest.raises(ValueError):
+            module._validate_result_window(0, 0)
+        with pytest.raises(ValueError):
+            module._validate_result_window(101, 0)
+        with pytest.raises(ValueError):
+            module._validate_result_window(100, -1)
+        with pytest.raises(ValueError):
+            module._validate_result_window(100, 10000)
 
 
 class TestNoHardcodedSecrets:

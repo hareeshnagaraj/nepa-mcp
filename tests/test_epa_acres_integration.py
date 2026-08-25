@@ -77,6 +77,21 @@ class TestToolRegistration:
 
         assert _TOOL_NAME in asyncio.run(_names())
 
+    def test_pagination_schema_is_bounded_and_documented(self):
+        module = _load_server()
+
+        async def _tool():
+            async with Client(module.mcp) as client:
+                return next(tool for tool in await client.list_tools() if tool.name == _TOOL_NAME)
+
+        properties = asyncio.run(_tool()).inputSchema["properties"]
+        assert properties["max_results"]["minimum"] == 1
+        assert properties["max_results"]["maximum"] == 100
+        assert properties["max_results"]["default"] == 100
+        assert properties["result_offset"]["minimum"] == 0
+        assert properties["result_offset"]["maximum"] == 9999
+        assert properties["result_offset"]["default"] == 0
+
 
 class TestPropertiesTool:
     def test_returns_markdown_with_record(self, monkeypatch):
@@ -114,6 +129,41 @@ class TestPropertiesTool:
         assert "**Total ACRES Properties:** 0" in text
         assert "not a complete inventory of brownfields or contaminated sites" in text
 
+    def test_second_page_returns_later_nearest_first_records(self, monkeypatch):
+        module = _load_server()
+        features = [
+            {
+                "attributes": {
+                    "registry_id": str(110000000000 + index),
+                    "primary_name": f"SITE {index}",
+                    "state_code": "PA",
+                    "latitude": 40.44 + index / 1000,
+                    "longitude": -79.99,
+                }
+            }
+            for index in range(5)
+        ]
+        _install_mock_query(module, features)
+        result = asyncio.run(
+            _call(
+                module,
+                _TOOL_NAME,
+                {
+                    "latitude": 40.44,
+                    "longitude": -79.99,
+                    "buffer_miles": 25,
+                    "max_results": 2,
+                    "result_offset": 2,
+                },
+            )
+        )
+        text = _text(result)
+        assert "Property Details (3–4 of 5)" in text
+        assert "SITE 2" in text
+        assert "SITE 3" in text
+        assert "SITE 0" not in text
+        assert "result_offset=4" in text
+
 
 class TestInputValidationThroughTool:
     def test_out_of_range_latitude_is_rejected(self):
@@ -125,3 +175,22 @@ class TestInputValidationThroughTool:
         module = _load_server()
         with pytest.raises(Exception):
             asyncio.run(_call(module, _TOOL_NAME, {"latitude": 40.44, "longitude": -79.99, "buffer_miles": 0}))
+
+    def test_invalid_pagination_is_rejected(self):
+        module = _load_server()
+        with pytest.raises(Exception):
+            asyncio.run(
+                _call(
+                    module,
+                    _TOOL_NAME,
+                    {"latitude": 40.44, "longitude": -79.99, "max_results": 0},
+                )
+            )
+        with pytest.raises(Exception):
+            asyncio.run(
+                _call(
+                    module,
+                    _TOOL_NAME,
+                    {"latitude": 40.44, "longitude": -79.99, "result_offset": -1},
+                )
+            )

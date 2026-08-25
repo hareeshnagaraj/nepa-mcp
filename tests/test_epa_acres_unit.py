@@ -94,31 +94,39 @@ class TestRecordParsing:
         assert prop["acres_property_id"] == "15332"
         assert prop["latitude"] == 40.430555
         assert prop["longitude"] == -79.980113
+        assert prop["distance_miles"] > 0
         assert prop["facility_url"] == SAMPLE_ATTRIBUTES["facility_url"]
         assert result["center"] == {"latitude": 40.44, "longitude": -79.99}
         assert result["buffer_miles"] == 25.0
+        assert result["counts_by_state"] == {"PA": 1}
 
     def test_missing_fields_fall_back_to_defaults(self, monkeypatch):
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
-        _patch_query(api, monkeypatch, [{"attributes": {}}])
+        _patch_query(api, monkeypatch, [{"attributes": {"registry_id": "110000000001"}}])
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
         prop = result["properties"][0]
         assert prop["name"] == "Unknown"
         assert prop["state"] == ""
-        assert prop["frs_registry_id"] == ""
+        assert prop["frs_registry_id"] == "110000000001"
         assert prop["acres_property_id"] == ""
         assert prop["latitude"] is None
         assert prop["longitude"] is None
+        assert prop["distance_miles"] is None
 
     def test_non_numeric_coordinates_coerced_to_none(self, monkeypatch):
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
-        _patch_query(api, monkeypatch, [{"attributes": {"latitude": "not-a-number", "longitude": None}}])
+        _patch_query(
+            api,
+            monkeypatch,
+            [{"attributes": {"registry_id": "110000000001", "latitude": "not-a-number", "longitude": None}}],
+        )
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
         prop = result["properties"][0]
         assert prop["latitude"] is None
         assert prop["longitude"] is None
+        assert prop["distance_miles"] is None
 
     def test_empty_features_yields_zero(self, monkeypatch):
         api = _load_acres_api()
@@ -148,6 +156,8 @@ class TestRecordParsing:
             assert field in out_fields
         assert captured["kwargs"].get("return_geometry", False) is False
         assert "out_sr" not in captured["kwargs"]
+        assert captured["kwargs"]["timeout"] == api.ACRES_QUERY_TIMEOUT_SECONDS
+        assert captured["kwargs"]["max_attempts"] == api.ACRES_QUERY_MAX_ATTEMPTS
 
 
 # ---------------------------------------------------------------------------
@@ -156,27 +166,37 @@ class TestRecordParsing:
 
 
 class TestSorting:
-    def test_records_sorted_by_state_city_then_name(self, monkeypatch):
+    def test_records_sorted_nearest_first_with_stable_text_tiebreakers(self, monkeypatch):
         api = _load_acres_api()
         _patch_roi(api, monkeypatch)
         _patch_query(
             api,
             monkeypatch,
             [
-                {"attributes": {"state_code": "WV", "city_name": "WHEELING", "primary_name": "SITE A"}},
-                {"attributes": {"state_code": "PA", "city_name": "PITTSBURGH", "primary_name": "SITE Z"}},
-                {"attributes": {"state_code": "PA", "city_name": "PITTSBURGH", "primary_name": "SITE B"}},
-                {"attributes": {"state_code": "PA", "city_name": "MILLVALE", "primary_name": "SITE C"}},
+                {
+                    "attributes": {
+                        "state_code": "PA",
+                        "city_name": "FAR",
+                        "primary_name": "SITE FAR",
+                        "latitude": 41.0,
+                        "longitude": -80.0,
+                    }
+                },
+                {
+                    "attributes": {
+                        "state_code": "WV",
+                        "city_name": "NEAR",
+                        "primary_name": "SITE NEAR",
+                        "latitude": 40.441,
+                        "longitude": -79.99,
+                    }
+                },
+                {"attributes": {"state_code": "PA", "city_name": "UNKNOWN", "primary_name": "NO COORDS"}},
             ],
         )
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
-        order = [(p["state"], p["city"], p["name"]) for p in result["properties"]]
-        assert order == [
-            ("PA", "MILLVALE", "SITE C"),
-            ("PA", "PITTSBURGH", "SITE B"),
-            ("PA", "PITTSBURGH", "SITE Z"),
-            ("WV", "WHEELING", "SITE A"),
-        ]
+        assert [p["name"] for p in result["properties"]] == ["SITE NEAR", "SITE FAR", "NO COORDS"]
+        assert result["properties"][0]["distance_miles"] < result["properties"][1]["distance_miles"]
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +217,7 @@ class TestResultStates:
         )
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
         assert result["truncated"] is True
+        assert result["partial"] is True
         assert result["warnings"] == [
             "EPA ACRES Brownfields layer reached the 10000 feature safety cap; results are partial."
         ]
@@ -213,7 +234,8 @@ class TestResultStates:
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
         assert result["total"] == 0
         assert result["data_unavailable"] is True
-        assert "upstream 500" in result["error"]
+        assert result["error"] == "EPA ACRES Brownfields data were unavailable for this request."
+        assert "upstream 500" not in result["error"]
         assert any("not a no-hit finding" in warning for warning in result["warnings"])
 
     def test_buffer_failure_marks_data_unavailable(self, monkeypatch):
@@ -226,7 +248,7 @@ class TestResultStates:
         result = api.get_epa_acres_properties_in_roi(40.44, -79.99)
         assert result["total"] == 0
         assert result["data_unavailable"] is True
-        assert "GeometryServer unavailable" in result["error"]
+        assert result["error"] == "ArcGIS GeometryServer was unavailable for this request."
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +281,7 @@ class TestFormatter:
             "acres_property_id": "15332",
             "latitude": 40.430555,
             "longitude": -79.980113,
+            "distance_miles": 0.75,
             "facility_url": SAMPLE_ATTRIBUTES["facility_url"],
         }
         prop.update(overrides)
@@ -269,13 +292,16 @@ class TestFormatter:
         out = api.format_epa_acres_summary(self._data([self._property()]))
         assert "## EPA ACRES Brownfields Properties" in out
         assert "**Total ACRES Properties:** 1" in out
-        assert "### PA (1 property)" in out
+        assert "### Properties by State" in out
+        assert "- **PA:** 1 property" in out
+        assert "#### PA (1 property shown)" in out
         assert "**FORMER BROOKS ARMORED CAR**" in out
         assert "1819 WHARTON, PITTSBURGH, ALLEGHENY, 15203" in out
         assert "Region 03" in out
         assert "FRS Registry ID 110038700607" in out
         assert "ACRES ID 15332" in out
         assert "(40.430555, -79.980113)" in out
+        assert "0.750 mi from center" in out
         assert f"[EPA property record]({SAMPLE_ATTRIBUTES['facility_url']})" in out
 
     def test_summary_handles_empty_with_inventory_caveat(self):
@@ -299,22 +325,42 @@ class TestFormatter:
         assert "Error during query: ACRES data unavailable: upstream 500" in out
         assert "No ACRES Brownfields properties were identified" not in out
 
-    def test_summary_caps_listed_properties(self):
+    def test_summary_paginates_nearest_first_listing(self):
         api = _load_acres_api()
-        properties = [self._property(name=f"SITE {i:03d}") for i in range(api.MAX_LISTED_PROPERTIES + 5)]
+        properties = [self._property(name=f"SITE {i:03d}") for i in range(api.MAX_PAGE_SIZE + 5)]
         data = self._data(properties)
         out = api.format_epa_acres_summary(data)
-        assert f"Listing the first {api.MAX_LISTED_PROPERTIES} of {len(properties)} properties" in out
-        assert "Reduce buffer_miles for a complete listing." in out
+        assert f"Property Details (1–{api.MAX_PAGE_SIZE} of {len(properties)})" in out
+        assert f"result_offset={api.MAX_PAGE_SIZE}" in out
         assert "SITE 000" in out
-        assert f"SITE {api.MAX_LISTED_PROPERTIES + 4:03d}" not in out
+        assert f"SITE {api.MAX_PAGE_SIZE + 4:03d}" not in out
+
+        second_page = api.format_epa_acres_summary(data, result_offset=api.MAX_PAGE_SIZE)
+        assert f"Property Details ({api.MAX_PAGE_SIZE + 1}–{len(properties)} of {len(properties)})" in second_page
+        assert "SITE 000" not in second_page
+        assert f"SITE {api.MAX_PAGE_SIZE + 4:03d}" in second_page
+
+    def test_summary_keeps_complete_state_counts_when_page_omits_a_state(self):
+        api = _load_acres_api()
+        properties = [self._property(name=f"PA {i:03d}", state="PA") for i in range(101)]
+        properties.append(self._property(name="WV SITE", state="WV"))
+        out = api.format_epa_acres_summary(self._data(properties))
+        assert "- **PA:** 101 properties" in out
+        assert "- **WV:** 1 property" in out
+        assert "WV SITE" not in out
 
     def test_summary_lists_everything_at_exactly_the_cap(self):
         api = _load_acres_api()
-        properties = [self._property(name=f"SITE {i:03d}") for i in range(api.MAX_LISTED_PROPERTIES)]
+        properties = [self._property(name=f"SITE {i:03d}") for i in range(api.MAX_PAGE_SIZE)]
         out = api.format_epa_acres_summary(self._data(properties))
-        assert f"SITE {api.MAX_LISTED_PROPERTIES - 1:03d}" in out
-        assert "Listing the first" not in out
+        assert f"SITE {api.MAX_PAGE_SIZE - 1:03d}" in out
+        assert "More records are available" not in out
+
+    def test_summary_labels_upstream_truncation_as_a_lower_bound(self):
+        api = _load_acres_api()
+        out = api.format_epa_acres_summary(self._data([self._property()], truncated=True))
+        assert "**Returned ACRES Properties:** 1" in out
+        assert "returned count is a lower bound" in out
 
     def test_summary_states_acres_limitations(self):
         api = _load_acres_api()
