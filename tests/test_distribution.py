@@ -24,6 +24,7 @@ EXPECTED_SERVERS = {
     "census",
     "cfr",
     "efh",
+    "epa_acres",
     "epa_aqs",
     "esa_ranges",
     "fema_nfhl",
@@ -293,9 +294,10 @@ async def _aggregate_tool_names() -> set[str]:
 
 def test_aggregate_server_discovers_all_tools() -> None:
     tool_names = asyncio.run(_aggregate_tool_names())
-    assert len(tool_names) == 46
+    assert len(tool_names) == 47
     assert {
         "summarize_roi_buffer",
+        "get_epa_acres_properties_in_roi",
         "get_ipac_resources_in_roi",
         "cfr_resolve_citation",
         "get_nrhp_properties_in_roi",

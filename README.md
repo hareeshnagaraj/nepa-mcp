@@ -31,8 +31,8 @@ toolkit. It gives AI agents structured access to federal environmental,
 regulatory, biological, cultural, socioeconomic, and jurisdictional data used
 in NEPA screening and permitting research.
 
-The current inventory includes 19 MCP servers, 46 MCP tools, and 32 GIS
-layers. Together, the tools and layers represent **78 environmental and
+The current inventory includes 20 MCP servers, 47 MCP tools, and 32 GIS
+layers. Together, the tools and layers represent **79 environmental and
 regulatory research capabilities**. These capabilities draw on public data
 from 12 federal agencies, along with interagency and nonfederal sources.
 
@@ -110,7 +110,7 @@ new task.
 
 ## Codex Plugin
 
-The Codex plugin registers all 19 servers and includes the `nepa-screening`
+The Codex plugin registers all 20 servers and includes the `nepa-screening`
 skill. If you use the plugin, do not also run `nepa-mcp configure codex`.
 
 Install and verify the Python runtime before adding the plugin:
@@ -120,7 +120,7 @@ pipx install nepa-mcp
 nepa-mcp doctor
 ```
 
-`doctor` should report `Installed servers: 19`. Then add the marketplace in
+`doctor` should report `Installed servers: 20`. Then add the marketplace in
 Codex Desktop:
 
 1. Open **Plugins** and select **Add plugin marketplace**.
@@ -165,7 +165,7 @@ complete 32-layer catalog, output behavior, provenance, and artifact storage.
 
 ## Credentials
 
-Credentials are not required to install NEPA MCP or use the other 17 servers.
+Credentials are not required to install NEPA MCP or use the other 18 servers.
 The Census and EPA AQS servers require credentials before they can return data:
 
 | Server | Environment variables |
@@ -195,6 +195,7 @@ Credentials are not copied into MCP client or plugin configuration, and
 | `census` | [U.S. Census Bureau](https://www.census.gov/) | ACS 5-Year socioeconomic indicators for intersecting TIGERweb counties |
 | `cfr` | [Office of the Federal Register / National Archives](https://www.archives.gov/federal-register) and [U.S. Government Publishing Office](https://www.gpo.gov/) | eCFR and Federal Register records, including executive orders |
 | `efh` | [NOAA Fisheries](https://www.fisheries.noaa.gov/) | EFH Mapper data for EFH, HAPC, salmon, HMS, coastal pelagic species, and groundfish screening |
+| `epa_acres` | [U.S. Environmental Protection Agency](https://www.epa.gov/) | ACRES grant-reported Brownfields property records for redevelopment and site-screening context |
 | `epa_aqs` | [U.S. Environmental Protection Agency](https://www.epa.gov/) | Air Quality System monitoring data and NAAQS screening comparisons |
 | `esa_ranges` | [NOAA Fisheries, West Coast Region](https://www.fisheries.noaa.gov/about/west-coast-region) | ESA-listed salmon and steelhead ranges by HUC-12 watershed |
 | `fema_nfhl` | [Federal Emergency Management Agency](https://www.fema.gov/) | National Flood Hazard Layer flood zones, levees, and water areas |
