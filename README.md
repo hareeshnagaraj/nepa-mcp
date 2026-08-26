@@ -162,6 +162,18 @@ partial, and failed layer counts so source coverage remains visible.
 
 See the [Map Composer guide](https://github.com/pnnl/nepa-mcp/blob/main/docs/map-composer.md) for profile membership, the
 complete 32-layer catalog, output behavior, provenance, and artifact storage.
+The [ACRES Brownfields overlay spec](https://github.com/pnnl/nepa-mcp/blob/main/docs/acres-map-composer-overlay-spec.md) describes a proposed Map Composer point-overlay workflow that uses the existing `epa_acres` server output without changing its server contract.
+
+## ACRES Brownfields screening demo
+
+Run the scenario demo to review ACRES Brownfields grant-program property records around three representative project points:
+
+```bash
+python scripts/acres_screening_demo.py
+python scripts/acres_screening_demo.py --json
+```
+
+The fixtures cover a dense Pittsburgh industrial corridor, a DC-area infrastructure point, and a sparse rural coordinate that demonstrates the honest no-hit path. Every output states that ACRES is grant-reported Brownfields program data, not a contaminated-site inventory.
 
 ## Credentials
 
